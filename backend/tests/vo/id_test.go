@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	vo "github.com/eskokado/startup-auth-go/backend/pkg/domain/vos"
+	"github.com/eskokado/startup-auth-go/backend/pkg/domain/vo"
 	"github.com/eskokado/startup-auth-go/backend/pkg/msgerror"
 	"github.com/google/uuid"
 )
