@@ -7,7 +7,14 @@ require (
 	github.com/go-chi/jwtauth v1.2.0
 	github.com/joho/godotenv v1.5.1
 	github.com/spf13/viper v1.20.1
+	github.com/stretchr/testify v1.10.0
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
+)
+
+require (
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 )
 
 require (
