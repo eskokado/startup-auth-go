@@ -31,8 +31,14 @@ func TestNewEmail(t *testing.T) {
 				return
 			}
 
-			if email.String() != strings.ToLower(tt.input) {
-				t.Errorf("NewEmail() = %v, want %v", email.String(), tt.input)
+			if err != nil {
+				t.Errorf("NewEmail() unexpected error = %v", err)
+				return
+			}
+
+			expected := strings.ToLower(tt.input)
+			if email.String() != expected {
+				t.Errorf("NewEmail() = %v, want %v", email.String(), expected)
 			}
 		})
 	}
@@ -40,16 +46,16 @@ func TestNewEmail(t *testing.T) {
 
 func TestEmailMethods(t *testing.T) {
 	t.Run("String()", func(t *testing.T) {
-		n := vo.Email("alice@email.com")
+		n, _ := vo.NewEmail("alice@email.com")
 		if n.String() != "alice@email.com" {
 			t.Errorf("String() = %v, want %v", n.String(), "alice@email.com")
 		}
 	})
 
 	t.Run("Equal()", func(t *testing.T) {
-		n1 := vo.Email("alice@email.com")
-		n2 := vo.Email("alice@email.com")
-		n3 := vo.Email("bob@email.com")
+		n1, _ := vo.NewEmail("alice@email.com")
+		n2, _ := vo.NewEmail("alice@email.com")
+		n3, _ := vo.NewEmail("bob@email.com")
 
 		if !n1.Equal(n2) {
 			t.Error("Equal() deve retornar true para emails iguais")
@@ -60,8 +66,8 @@ func TestEmailMethods(t *testing.T) {
 	})
 
 	t.Run("IsEmpty()", func(t *testing.T) {
-		empty := vo.Email("")
-		nonEmpty := vo.Email("alice@email.com")
+		empty, _ := vo.NewEmail("")
+		nonEmpty, _ := vo.NewEmail("alice@email.com")
 
 		if !empty.IsEmpty() {
 			t.Error("IsEmpty() deve retornar true para email vazio")
