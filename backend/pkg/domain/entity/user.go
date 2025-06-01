@@ -10,6 +10,8 @@ import (
 	"github.com/eskokado/startup-auth-go/backend/pkg/msgerror"
 )
 
+var GenerateSecureToken = generateSecureToken
+
 type User struct {
 	ID                   vo.ID
 	Name                 vo.Name
@@ -123,7 +125,7 @@ func (u *User) VerifyPassword(password string) bool {
 	return u.PasswordHash.Verify(password)
 }
 func (u *User) GeneratePasswordResetToken() error {
-	token, err := generateSecureToken()
+	token, err := GenerateSecureToken()
 	if err != nil {
 		return err
 	}
