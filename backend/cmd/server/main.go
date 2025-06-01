@@ -16,12 +16,13 @@ import (
 	provider "github.com/eskokado/startup-auth-go/backend/internal/providers"
 	repository "github.com/eskokado/startup-auth-go/backend/internal/repositories"
 	usecase "github.com/eskokado/startup-auth-go/backend/internal/usecase/auth"
+	service "github.com/eskokado/startup-auth-go/backend/pkg/domain/services"
 )
 
 func main() {
 	// Carregar variáveis de ambiente
 	_ = godotenv.Load(".env")
-	_ = gomail.NewDialer(
+	sender := gomail.NewDialer(
 		os.Getenv("SMTP_HOST"),
 		parsePort(os.Getenv("SMTP_PORT")),
 		os.Getenv("SMTP_USERNAME"),
@@ -38,6 +39,7 @@ func main() {
 	userRepo := repository.NewGormUserRepository(db)
 
 	// 3. Inicializar serviços
+	emailService := service.NewEmailService(sender)
 
 	// 4. Inicializar provedores
 	cryptoProvider := provider.NewBcryptProvider(bcrypt.DefaultCost)
@@ -46,10 +48,12 @@ func main() {
 	// 5. Inicializar casos de uso
 	registerUseCase := usecase.NewRegisterUsecase(userRepo, cryptoProvider)
 	loggerUseCase := usecase.NewLoginUsecase(userRepo, cryptoProvider)
+	requestPasswordResetUC := usecase.NewRequestPasswordReset(userRepo, emailService)
 
 	// 6. Criar handlers HTTP
 	registerHTTPHandler := handlers.NewRegisterHandler(registerUseCase, userRepo)
 	loggerHTTPHandler := handlers.NewLoginHandler(loggerUseCase, tokenProvider)
+	forgotPasswordHandler := handlers.NewForgotPasswordHandler(requestPasswordResetUC)
 
 	// 7. Configurar roteador Gin
 	router := gin.Default()
@@ -59,6 +63,7 @@ func main() {
 	// 8. Registrar rotas
 	router.POST("/auth/register", registerHTTPHandler.Handle)
 	router.POST("/auth/login", loggerHTTPHandler.Handle)
+	router.POST("/auth/forgot-password", forgotPasswordHandler.Handle)
 
 	// 9. Iniciar o servidor
 	router.Run(":8080")
