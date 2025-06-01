@@ -53,7 +53,7 @@ Authorization: Bearer {{ token }}
 
 ### 👉👉👉 Forgot Password 👈👈👈
 
-POST http://localhost:8080/forgot-password HTTP/1.1
+POST http://localhost:8080/auth/forgot-password HTTP/1.1
 Content-Type: application/json
 
 {
