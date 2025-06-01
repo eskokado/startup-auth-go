@@ -10,7 +10,7 @@ type UpdatePasswordInput struct {
 }
 
 type ForgotPasswordInput struct {
-	Email string `json:"email" binding:"required"`
+	Email string `json:"email"`
 }
 
 type ResetPasswordInput struct {
