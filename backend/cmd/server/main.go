@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -12,7 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	handlers "github.com/eskokado/startup-auth-go/backend/internal/handlers/auth"
-	crypto "github.com/eskokado/startup-auth-go/backend/internal/providers"
+	provider "github.com/eskokado/startup-auth-go/backend/internal/providers"
 	repository "github.com/eskokado/startup-auth-go/backend/internal/repositories"
 	usecase "github.com/eskokado/startup-auth-go/backend/internal/usecase/auth"
 )
@@ -39,13 +40,16 @@ func main() {
 	// 3. Inicializar serviços
 
 	// 4. Inicializar provedores
-	cryptoProvider := crypto.NewBcryptProvider(bcrypt.DefaultCost) // Implementação do CryptoProvider
+	cryptoProvider := provider.NewBcryptProvider(bcrypt.DefaultCost)
+	tokenProvider := provider.NewJWTProvider("secret-key", 24*time.Hour)
 
 	// 5. Inicializar casos de uso
 	registerUseCase := usecase.NewRegisterUsecase(userRepo, cryptoProvider)
+	loggerUseCase := usecase.NewLoginUsecase(userRepo, cryptoProvider)
 
 	// 6. Criar handlers HTTP
 	registerHTTPHandler := handlers.NewRegisterHandler(registerUseCase, userRepo)
+	loggerHTTPHandler := handlers.NewLoginHandler(loggerUseCase, tokenProvider)
 
 	// 7. Configurar roteador Gin
 	router := gin.Default()
@@ -54,7 +58,9 @@ func main() {
 
 	// 8. Registrar rotas
 	router.POST("/auth/register", registerHTTPHandler.Handle)
+	router.POST("/auth/login", loggerHTTPHandler.Handle)
 
+	// 9. Iniciar o servidor
 	router.Run(":8080")
 }
 
