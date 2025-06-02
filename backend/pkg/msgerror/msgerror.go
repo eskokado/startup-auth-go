@@ -18,6 +18,7 @@ var (
 	AnErrInvalidID          = errors.New("invalid ID format")
 	AnErrInvalidName        = errors.New("invalid name")
 	AnErrEmptyName          = errors.New("name cannot be empty")
+	AnErrNameDifferent      = errors.New("new name must be different")
 	AnErrPasswordInvalid    = errors.New("password must be at least 8 characters")
 	AnErrEmptyPassword      = errors.New("expected error for empty password")
 	AnErrInvalidURL         = errors.New("invalid URL format")
