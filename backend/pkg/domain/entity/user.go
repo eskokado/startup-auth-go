@@ -93,6 +93,10 @@ func (u *User) WithName(newName vo.Name) (*User, error) {
 		return nil, msgerror.AnErrInvalidName
 	}
 
+	if u.Name.String() == newName.String() {
+		return nil, msgerror.AnErrNameDifferent
+	}
+
 	return &User{
 		ID:           u.ID,
 		Name:         newName,
