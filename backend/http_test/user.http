@@ -25,7 +25,7 @@ Content-Type: application/json
 
 {
     "email": "{{ email }}",
-    "password": "12345678"
+    "password": "87654321"
 }
 
 @token = {{ login.response.body.access_token }}
@@ -62,10 +62,10 @@ Content-Type: application/json
 
 ### 👉👉👉 Reset Password 👈👈👈
 
-POST http://localhost:8080/reset-password HTTP/1.1
+POST http://localhost:8080/auth/reset-password HTTP/1.1
 Content-Type: application/json
 
 {
-    "token": "RPxyp79-lcvvIw_GGO9xMTr5FCGvZ2VJPvZeCLA7J2o=",
+    "token": "b_MEghlU25694vuwQxPOoRkwVIIrCVESDXzWLi4ujGw=",
     "password": "87654321"
 }
