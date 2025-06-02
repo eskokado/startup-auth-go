@@ -49,11 +49,13 @@ func main() {
 	registerUseCase := usecase.NewRegisterUsecase(userRepo, cryptoProvider)
 	loggerUseCase := usecase.NewLoginUsecase(userRepo, cryptoProvider)
 	requestPasswordResetUC := usecase.NewRequestPasswordReset(userRepo, emailService)
+	resetPasswordUC := usecase.NewResetPassword(userRepo)
 
 	// 6. Criar handlers HTTP
 	registerHTTPHandler := handlers.NewRegisterHandler(registerUseCase, userRepo)
 	loggerHTTPHandler := handlers.NewLoginHandler(loggerUseCase, tokenProvider)
 	forgotPasswordHandler := handlers.NewForgotPasswordHandler(requestPasswordResetUC)
+	resetPasswordHandler := handlers.NewResetPasswordHandler(resetPasswordUC)
 
 	// 7. Configurar roteador Gin
 	router := gin.Default()
@@ -64,6 +66,7 @@ func main() {
 	router.POST("/auth/register", registerHTTPHandler.Handle)
 	router.POST("/auth/login", loggerHTTPHandler.Handle)
 	router.POST("/auth/forgot-password", forgotPasswordHandler.Handle)
+	router.POST("/auth/reset-password", resetPasswordHandler.Handle)
 
 	// 9. Iniciar o servidor
 	router.Run(":8080")
