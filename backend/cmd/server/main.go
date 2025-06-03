@@ -51,6 +51,7 @@ func main() {
 	loggerUseCase := usecase.NewLoginUsecase(userRepo, cryptoProvider)
 	requestPasswordResetUC := usecase.NewRequestPasswordReset(userRepo, emailService)
 	resetPasswordUC := usecase.NewResetPassword(userRepo)
+	updateNameUC := usecase.NewUpdateNameUseCase(userRepo)
 	updatePasswordUC := usecase.NewUpdatePasswordUseCase(userRepo, cryptoProvider)
 
 	// 6. Criar handlers HTTP
@@ -58,6 +59,7 @@ func main() {
 	loggerHTTPHandler := handlers.NewLoginHandler(loggerUseCase, tokenProvider)
 	forgotPasswordHandler := handlers.NewForgotPasswordHandler(requestPasswordResetUC)
 	resetPasswordHandler := handlers.NewResetPasswordHandler(resetPasswordUC)
+	updateNameHandler := handlers.NewUpdateNameHandler(updateNameUC)
 	updatePasswordHandler := handlers.NewUpdatePasswordHandler(updatePasswordUC)
 
 	// 7. Configurar roteador Gin
@@ -71,6 +73,7 @@ func main() {
 	router.POST("/auth/login", loggerHTTPHandler.Handle)
 	router.POST("/auth/forgot-password", forgotPasswordHandler.Handle)
 	router.POST("/auth/reset-password", resetPasswordHandler.Handle)
+	router.PUT("/user/name/:userID", authMiddleware, updateNameHandler.Handle)
 	router.PUT("/user/password/:userID", authMiddleware, updatePasswordHandler.Handle)
 
 	// 9. Iniciar o servidor
