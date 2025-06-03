@@ -25,7 +25,7 @@ Content-Type: application/json
 
 {
     "email": "{{ email }}",
-    "password": "87654321"
+    "password": "12345678"
 }
 
 @token = {{ login.response.body.access_token }}
@@ -37,7 +37,7 @@ Content-Type: application/json
 Authorization: Bearer {{ token }}
 
 {
-    "name": "Edson"
+    "name": "Edson Shideki Kokado"
 }
 
 ### 👉👉👉 Atualizar Senha 👈👈👈
