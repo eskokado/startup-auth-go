@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	handlers "github.com/eskokado/startup-auth-go/backend/internal/handlers/auth"
+	"github.com/eskokado/startup-auth-go/backend/internal/middleware"
 	provider "github.com/eskokado/startup-auth-go/backend/internal/providers"
 	repository "github.com/eskokado/startup-auth-go/backend/internal/repositories"
 	usecase "github.com/eskokado/startup-auth-go/backend/internal/usecase/auth"
@@ -50,23 +51,27 @@ func main() {
 	loggerUseCase := usecase.NewLoginUsecase(userRepo, cryptoProvider)
 	requestPasswordResetUC := usecase.NewRequestPasswordReset(userRepo, emailService)
 	resetPasswordUC := usecase.NewResetPassword(userRepo)
+	updatePasswordUC := usecase.NewUpdatePasswordUseCase(userRepo, cryptoProvider)
 
 	// 6. Criar handlers HTTP
 	registerHTTPHandler := handlers.NewRegisterHandler(registerUseCase, userRepo)
 	loggerHTTPHandler := handlers.NewLoginHandler(loggerUseCase, tokenProvider)
 	forgotPasswordHandler := handlers.NewForgotPasswordHandler(requestPasswordResetUC)
 	resetPasswordHandler := handlers.NewResetPasswordHandler(resetPasswordUC)
+	updatePasswordHandler := handlers.NewUpdatePasswordHandler(updatePasswordUC)
 
 	// 7. Configurar roteador Gin
 	router := gin.Default()
 
 	// 7.1 Criar middleware
+	authMiddleware := middleware.JWTAuthMiddleware(tokenProvider)
 
 	// 8. Registrar rotas
 	router.POST("/auth/register", registerHTTPHandler.Handle)
 	router.POST("/auth/login", loggerHTTPHandler.Handle)
 	router.POST("/auth/forgot-password", forgotPasswordHandler.Handle)
 	router.POST("/auth/reset-password", resetPasswordHandler.Handle)
+	router.PUT("/user/password/:userID", authMiddleware, updatePasswordHandler.Handle)
 
 	// 9. Iniciar o servidor
 	router.Run(":8080")
