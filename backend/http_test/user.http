@@ -47,8 +47,8 @@ Content-Type: application/json
 Authorization: Bearer {{ token }}
 
 {
-    "current_password": "123456",
-    "new_password": "654321"
+    "current_password": "12345678",
+    "new_password": "87654321"
 }
 
 ### 👉👉👉 Forgot Password 👈👈👈
