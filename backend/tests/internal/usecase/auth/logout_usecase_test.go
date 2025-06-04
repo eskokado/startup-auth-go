@@ -16,10 +16,11 @@ func TestLogoutSuccess(t *testing.T) {
 	mockBlacklist := new(mocks.MockBlacklist)
 	token := "valid_token"
 
-	// Mock: token não está na blacklist
-	mockBlacklist.On("Exists", mock.Anything, token).Return(false, nil)
-	// Mock: adição bem sucedida
-	mockBlacklist.On("Add", mock.Anything, token, 24*time.Hour).Return(nil)
+	// Token existe na blacklist
+	mockBlacklist.On("Exists", mock.Anything, token).Return(true, nil)
+
+	// Atualiza com TTL=0
+	mockBlacklist.On("Add", mock.Anything, token, time.Duration(0)).Return(nil)
 
 	uc := usecase.NewLogoutUsecase(mockBlacklist)
 	err := uc.Execute(context.Background(), token)
@@ -28,18 +29,18 @@ func TestLogoutSuccess(t *testing.T) {
 	mockBlacklist.AssertExpectations(t)
 }
 
-func TestLogoutTokenAlreadyRevoked(t *testing.T) {
+func TestLogoutTokenNotFound(t *testing.T) {
 	mockBlacklist := new(mocks.MockBlacklist)
-	token := "revoked_token"
+	token := "invalid_token"
 
-	// Mock: token já está na blacklist
-	mockBlacklist.On("Exists", mock.Anything, token).Return(true, nil)
+	// Token não existe na blacklist
+	mockBlacklist.On("Exists", mock.Anything, token).Return(false, nil)
 
 	uc := usecase.NewLogoutUsecase(mockBlacklist)
 	err := uc.Execute(context.Background(), token)
 
 	assert.Error(t, err)
-	assert.Equal(t, "token already revoked", err.Error())
+	assert.Equal(t, "token not found", err.Error())
 	mockBlacklist.AssertExpectations(t)
 	mockBlacklist.AssertNotCalled(t, "Add")
 }
@@ -49,7 +50,6 @@ func TestLogoutExistsError(t *testing.T) {
 	token := "any_token"
 	expectedErr := errors.New("database error")
 
-	// Mock: erro na verificação
 	mockBlacklist.On("Exists", mock.Anything, token).Return(false, expectedErr)
 
 	uc := usecase.NewLogoutUsecase(mockBlacklist)
@@ -66,15 +66,16 @@ func TestLogoutAddError(t *testing.T) {
 	token := "valid_token"
 	expectedErr := errors.New("redis error")
 
-	// Mock: token não está na blacklist
-	mockBlacklist.On("Exists", mock.Anything, token).Return(false, nil)
-	// Mock: erro ao adicionar
-	mockBlacklist.On("Add", mock.Anything, token, 24*time.Hour).Return(expectedErr)
+	// Token existe na blacklist
+	mockBlacklist.On("Exists", mock.Anything, token).Return(true, nil)
+
+	// Erro ao atualizar com TTL=0
+	mockBlacklist.On("Add", mock.Anything, token, time.Duration(0)).Return(expectedErr)
 
 	uc := usecase.NewLogoutUsecase(mockBlacklist)
 	err := uc.Execute(context.Background(), token)
 
 	assert.Error(t, err)
-	assert.Equal(t, expectedErr, err) // Erro original é propagado
+	assert.Equal(t, expectedErr, err)
 	mockBlacklist.AssertExpectations(t)
 }
