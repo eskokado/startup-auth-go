@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/eskokado/startup-auth-go/backend/pkg/domain/providers"
 )
@@ -24,9 +23,9 @@ func (uc *LogoutUsecase) Execute(ctx context.Context, token string) error {
 		return errors.New("failed to verify token status")
 	}
 
-	if exists {
-		return errors.New("token already revoked")
+	if !exists {
+		return errors.New("token not found")
 	}
 
-	return uc.blacklistProvider.Add(ctx, token, 24*time.Hour)
+	return uc.blacklistProvider.Add(ctx, token, 0)
 }
