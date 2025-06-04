@@ -34,7 +34,7 @@ func JWTAuthMiddleware(
 			c.AbortWithStatusJSON(500, gin.H{"error": "internal server error"})
 			return
 		}
-		if blacklisted {
+		if !blacklisted {
 			c.AbortWithStatusJSON(401, gin.H{"error": "token revoked"})
 			return
 		}
