@@ -10,6 +10,7 @@ import (
 	"github.com/eskokado/startup-auth-go/backend/pkg/domain/vo"
 	"github.com/eskokado/startup-auth-go/backend/pkg/dto"
 	"github.com/eskokado/startup-auth-go/backend/pkg/msgerror"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type LoginUsecase struct {
@@ -56,7 +57,16 @@ func (h *LoginUsecase) Execute(ctx context.Context, email string, password strin
 		return dto.LoginResult{}, msgerror.AnErrInvalidCredentials
 	}
 
-	token, err := h.tokenProvider.Generate(user.ID)
+	// Gerar token JWT
+	claims := providers.Claims{
+		UserID: user.ID.String(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   user.Email.String(),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)), // Expira em 24h,
+		},
+	}
+
+	token, err := h.tokenProvider.Generate(claims)
 	if err != nil {
 		return dto.LoginResult{}, errors.New("failed to generate token")
 	}
