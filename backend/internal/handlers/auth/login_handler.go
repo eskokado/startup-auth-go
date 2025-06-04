@@ -2,24 +2,19 @@ package handlers
 
 import (
 	"net/http"
-	"time"
 
 	usecase "github.com/eskokado/startup-auth-go/backend/internal/port/auth"
-	"github.com/eskokado/startup-auth-go/backend/pkg/domain/providers"
 	"github.com/eskokado/startup-auth-go/backend/pkg/dto"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 )
 
 type LoginHandler struct {
-	loginUseCase  usecase.LoginInterface
-	tokenProvider providers.TokenProvider
+	loginUseCase usecase.LoginInterface
 }
 
-func NewLoginHandler(loginUseCase usecase.LoginInterface, tokenProvider providers.TokenProvider) *LoginHandler {
+func NewLoginHandler(loginUseCase usecase.LoginInterface) *LoginHandler {
 	return &LoginHandler{
-		loginUseCase:  loginUseCase,
-		tokenProvider: tokenProvider,
+		loginUseCase: loginUseCase,
 	}
 }
 
@@ -36,20 +31,6 @@ func (h *LoginHandler) Handle(c *gin.Context) {
 		return
 	}
 
-	// Gerar token JWT
-	claims := providers.Claims{
-		UserID: loginResult.UserID.String(),
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   loginResult.Email.String(),
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)), // Expira em 24h,
-		},
-	}
-	token, err := h.tokenProvider.Generate(claims)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
-		return
-	}
-
-	output := dto.LoginOutput{AccessToken: token}
+	output := dto.LoginOutput{AccessToken: loginResult.Token}
 	c.JSON(http.StatusOK, output)
 }
