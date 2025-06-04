@@ -12,6 +12,7 @@ type LoginResult struct {
 	Email     vo.Email
 	ImageURL  vo.URL
 	CreatedAt time.Time
+	Token     string
 }
 
 type LoginInput struct {

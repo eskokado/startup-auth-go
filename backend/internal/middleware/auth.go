@@ -7,7 +7,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func JWTAuthMiddleware(tokenProvider providers.TokenProvider) gin.HandlerFunc {
+func JWTAuthMiddleware(
+	tokenProvider providers.TokenProvider,
+	blacklistProvider providers.BlacklistProvider,
+) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 1. Extrair o token do header
 		authHeader := c.GetHeader("Authorization")
@@ -25,21 +28,32 @@ func JWTAuthMiddleware(tokenProvider providers.TokenProvider) gin.HandlerFunc {
 
 		tokenString := parts[1]
 
-		// 3. Validar token e obter claims
+		// 3. Verificar e o token está na blacklist
+		blacklisted, err := blacklistProvider.Exists(c.Request.Context(), tokenString)
+		if err != nil {
+			c.AbortWithStatusJSON(500, gin.H{"error": "internal server error"})
+			return
+		}
+		if !blacklisted {
+			c.AbortWithStatusJSON(401, gin.H{"error": "token revoked"})
+			return
+		}
+
+		// 4. Validar token e obter claims
 		rawClaims, err := tokenProvider.Validate(tokenString)
 		if err != nil {
 			c.AbortWithStatusJSON(401, gin.H{"error": "Invalid token", "details": err.Error()})
 			return
 		}
 
-		// 4. Converter claims para o tipo correto
+		// 5. Converter claims para o tipo correto
 		claims, ok := rawClaims.(providers.Claims)
 		if !ok {
 			c.AbortWithStatusJSON(401, gin.H{"error": "Invalid token claims structure"})
 			return
 		}
 
-		// 5. Extrair userID das claims
+		// 6. Extrair userID das claims
 		userID := claims.UserID
 		if userID == "" {
 			c.AbortWithStatusJSON(401, gin.H{"error": "UserID not found in token"})

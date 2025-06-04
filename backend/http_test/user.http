@@ -30,6 +30,16 @@ Content-Type: application/json
 
 @token = {{ login.response.body.access_token }}
 
+### 👉👉👉 Logout 👈👈👈
+
+DELETE http://localhost:8080/auth/logout/ HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer {{ token }}
+
+{
+    "name": "Edson Shideki Kokado"
+}
+
 ### 👉👉👉 Atualizar Nome 👈👈👈
 
 PUT http://localhost:8080/user/name/{{ user_id }} HTTP/1.1
