@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/eskokado/startup-auth-go/backend/pkg/domain/providers"
 	"github.com/eskokado/startup-auth-go/backend/pkg/domain/repository"
@@ -12,17 +13,23 @@ import (
 )
 
 type LoginUsecase struct {
-	userRepo       repository.UserRepository
-	cryptoProvider providers.CryptoProvider
+	userRepo          repository.UserRepository
+	cryptoProvider    providers.CryptoProvider
+	tokenProvider     providers.TokenProvider
+	blacklistProvider providers.BlacklistProvider
 }
 
 func NewLoginUsecase(
 	userRepo repository.UserRepository,
 	cryptoProvider providers.CryptoProvider,
+	tokenProvider providers.TokenProvider,
+	blacklistProvider providers.BlacklistProvider,
 ) *LoginUsecase {
 	return &LoginUsecase{
-		userRepo:       userRepo,
-		cryptoProvider: cryptoProvider,
+		userRepo:          userRepo,
+		cryptoProvider:    cryptoProvider,
+		tokenProvider:     tokenProvider,
+		blacklistProvider: blacklistProvider,
 	}
 }
 
@@ -49,10 +56,22 @@ func (h *LoginUsecase) Execute(ctx context.Context, email string, password strin
 		return dto.LoginResult{}, msgerror.AnErrInvalidCredentials
 	}
 
+	token, err := h.tokenProvider.Generate(user.ID)
+	if err != nil {
+		return dto.LoginResult{}, errors.New("failed to generate token")
+	}
+
+	ttl := 24 * time.Hour
+
+	if err := h.blacklistProvider.Add(ctx, token, ttl); err != nil {
+		return dto.LoginResult{}, errors.New("failed to secure session")
+	}
+
 	return dto.LoginResult{
 		UserID:    user.ID,
 		Name:      user.Name,
 		Email:     user.Email,
 		CreatedAt: user.CreatedAt,
+		Token:     token,
 	}, nil
 }
