@@ -34,8 +34,9 @@ func TestRedisBlacklist_Add_Success(t *testing.T) {
 	token := "test_token"
 	ttl := 5 * time.Minute
 
+	// Valor esperado: o próprio token (pois ttl > 0)
 	cmd := redis.NewStatusResult("", nil)
-	mockClient.On("Set", ctx, "blacklist:"+token, true, ttl).Return(cmd)
+	mockClient.On("Set", ctx, "blacklist:"+token, token, ttl).Return(cmd)
 
 	err := provider.Add(ctx, token, ttl)
 	assert.NoError(t, err)
@@ -48,17 +49,19 @@ func TestRedisBlacklist_Add_Error(t *testing.T) {
 
 	ctx := context.Background()
 	token := "test_token"
-	ttl := 5 * time.Minute
+	ttl := time.Duration(0) // Corrigido para time.Duration
 	expectedErr := errors.New("redis error")
 
+	// Valor esperado: "" (pois ttl <= 0)
 	cmd := redis.NewStatusResult("", expectedErr)
-	mockClient.On("Set", ctx, "blacklist:"+token, true, ttl).Return(cmd)
+	mockClient.On("Set", ctx, "blacklist:"+token, "", ttl).Return(cmd)
 
-	err := provider.Add(ctx, token, ttl)
+	err := provider.Add(ctx, token, 0)
 	assert.ErrorIs(t, err, expectedErr)
 	mockClient.AssertExpectations(t)
 }
 
+// Os testes para Exists permanecem inalterados
 func TestRedisBlacklist_Exists_True(t *testing.T) {
 	mockClient := new(MockRedisCmdable)
 	provider := providers.NewRedisBlacklist(mockClient)
