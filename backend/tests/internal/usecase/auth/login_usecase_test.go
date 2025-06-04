@@ -8,9 +8,11 @@ import (
 
 	usecase "github.com/eskokado/startup-auth-go/backend/internal/usecase/auth"
 	"github.com/eskokado/startup-auth-go/backend/pkg/domain/entity"
+	"github.com/eskokado/startup-auth-go/backend/pkg/domain/providers"
 	"github.com/eskokado/startup-auth-go/backend/pkg/domain/vo"
 	"github.com/eskokado/startup-auth-go/backend/pkg/msgerror"
 	"github.com/eskokado/startup-auth-go/backend/tests/mocks"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -140,11 +142,19 @@ func TestLoginSuccessfully(t *testing.T) {
 		CreatedAt:    time.Now(),
 	}
 
+	expectedClaims := providers.Claims{
+		UserID: userID.String(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   user.Email.String(),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+		},
+	}
+
 	mockRepo.On("GetByEmail", mock.Anything, email).Return(user, nil)
 	mockCrypto.On("Compare", "valid-password", validHash).Return(true, nil)
 
 	// Configuração do mock para tokenProvider
-	mockToken.On("Generate", userID).Return("generated_token", nil)
+	mockToken.On("Generate", expectedClaims).Return("generated_token", nil)
 
 	// Configuração do mock para blacklistProvider
 	mockBlacklist.On("Add", mock.Anything, "generated_token", 24*time.Hour).Return(nil)
@@ -185,11 +195,19 @@ func TestLoginTokenGenerationFailure(t *testing.T) {
 		CreatedAt:    time.Now(),
 	}
 
+	expectedClaims := providers.Claims{
+		UserID: userID.String(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   user.Email.String(),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+		},
+	}
+
 	mockRepo.On("GetByEmail", mock.Anything, email).Return(user, nil)
 	mockCrypto.On("Compare", "valid-password", validHash).Return(true, nil)
 
 	// Configurar para falha na geração do token
-	mockToken.On("Generate", userID).Return("", errors.New("token generation error"))
+	mockToken.On("Generate", expectedClaims).Return("", errors.New("token generation error"))
 
 	handler := usecase.NewLoginUsecase(mockRepo, mockCrypto, mockToken, mockBlacklist)
 	_, err := handler.Execute(context.Background(), "user@test.com", "valid-password")
@@ -223,11 +241,19 @@ func TestLoginBlacklistAddFailure(t *testing.T) {
 		CreatedAt:    time.Now(),
 	}
 
+	expectedClaims := providers.Claims{
+		UserID: userID.String(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   user.Email.String(),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+		},
+	}
+
 	mockRepo.On("GetByEmail", mock.Anything, email).Return(user, nil)
 	mockCrypto.On("Compare", "valid-password", validHash).Return(true, nil)
 
 	// Configurar geração de token bem sucedida
-	mockToken.On("Generate", userID).Return("generated_token", nil)
+	mockToken.On("Generate", expectedClaims).Return("generated_token", nil)
 
 	// Configurar falha ao adicionar na blacklist
 	mockBlacklist.On("Add", mock.Anything, "generated_token", 24*time.Hour).Return(errors.New("blacklist error"))
