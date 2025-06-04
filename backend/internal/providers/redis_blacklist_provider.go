@@ -21,8 +21,16 @@ func NewRedisBlacklist(client RedisCmdable) *RedisBlacklist {
 	return &RedisBlacklist{client: client}
 }
 
-func (r *RedisBlacklist) Add(ctx context.Context, token string, ttl time.Duration) error {
-	return r.client.Set(ctx, "blacklist:"+token, true, ttl).Err()
+func (r *RedisBlacklist) Add(
+	ctx context.Context,
+	token string,
+	ttl time.Duration,
+) error {
+	value := ""
+	if ttl > 0 {
+		value = token
+	}
+	return r.client.Set(ctx, "blacklist:"+token, value, ttl).Err()
 }
 
 func (r *RedisBlacklist) Exists(ctx context.Context, token string) (bool, error) {
