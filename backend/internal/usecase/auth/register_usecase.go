@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"errors"
-	"log"
 	"time"
 
 	"github.com/eskokado/startup-auth-go/backend/pkg/domain/entity"
@@ -73,7 +72,6 @@ func (h *RegisterUsecase) Execute(ctx context.Context, input dto.RegisterParams)
 	}
 
 	if savedUser == nil {
-		log.Println("savedUser is nil")
 		return msgerror.AnErrNoSavedUser
 	}
 
