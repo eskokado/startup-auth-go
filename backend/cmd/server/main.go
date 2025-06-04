@@ -62,6 +62,7 @@ func main() {
 	loggerUseCase := usecase.NewLoginUsecase(
 		userRepo, cryptoProvider, tokenProvider, blacklistProvider,
 	)
+	logoutUseCase := usecase.NewLogoutUsecase(blacklistProvider)
 	requestPasswordResetUC := usecase.NewRequestPasswordReset(userRepo, emailService)
 	resetPasswordUC := usecase.NewResetPassword(userRepo)
 	updateNameUC := usecase.NewUpdateNameUseCase(userRepo)
@@ -70,6 +71,7 @@ func main() {
 	// 6. Criar handlers HTTP
 	registerHTTPHandler := handlers.NewRegisterHandler(registerUseCase, userRepo)
 	loggerHTTPHandler := handlers.NewLoginHandler(loggerUseCase)
+	logoutHTTPHandler := handlers.NewLogoutHandler(logoutUseCase)
 	forgotPasswordHandler := handlers.NewForgotPasswordHandler(requestPasswordResetUC)
 	resetPasswordHandler := handlers.NewResetPasswordHandler(resetPasswordUC)
 	updateNameHandler := handlers.NewUpdateNameHandler(updateNameUC)
@@ -84,6 +86,7 @@ func main() {
 	// 8. Registrar rotas
 	router.POST("/auth/register", registerHTTPHandler.Handle)
 	router.POST("/auth/login", loggerHTTPHandler.Handle)
+	router.DELETE("/auth/logout", authMiddleware, logoutHTTPHandler.Handle)
 	router.POST("/auth/forgot-password", forgotPasswordHandler.Handle)
 	router.POST("/auth/reset-password", resetPasswordHandler.Handle)
 	router.PUT("/user/name/:userID", authMiddleware, updateNameHandler.Handle)
