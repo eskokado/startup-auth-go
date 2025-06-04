@@ -69,7 +69,7 @@ func main() {
 
 	// 6. Criar handlers HTTP
 	registerHTTPHandler := handlers.NewRegisterHandler(registerUseCase, userRepo)
-	loggerHTTPHandler := handlers.NewLoginHandler(loggerUseCase, tokenProvider)
+	loggerHTTPHandler := handlers.NewLoginHandler(loggerUseCase)
 	forgotPasswordHandler := handlers.NewForgotPasswordHandler(requestPasswordResetUC)
 	resetPasswordHandler := handlers.NewResetPasswordHandler(resetPasswordUC)
 	updateNameHandler := handlers.NewUpdateNameHandler(updateNameUC)
