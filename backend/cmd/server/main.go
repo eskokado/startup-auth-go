@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/gomail.v2"
@@ -14,6 +15,7 @@ import (
 
 	handlers "github.com/eskokado/startup-auth-go/backend/internal/handlers/auth"
 	"github.com/eskokado/startup-auth-go/backend/internal/middleware"
+	"github.com/eskokado/startup-auth-go/backend/internal/providers"
 	provider "github.com/eskokado/startup-auth-go/backend/internal/providers"
 	repository "github.com/eskokado/startup-auth-go/backend/internal/repositories"
 	usecase "github.com/eskokado/startup-auth-go/backend/internal/usecase/auth"
@@ -36,19 +38,30 @@ func main() {
 		panic("failed to connect database")
 	}
 	db.AutoMigrate(&repository.GormUser{})
+
 	// 2. Inicializar repositório
 	userRepo := repository.NewGormUserRepository(db)
 
 	// 3. Inicializar serviços
 	emailService := service.NewEmailService(sender)
 
+	// 4. Inicializar redis
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379", // Endereço do Redis
+		Password: "",               // Senha
+		DB:       0,                // Banco padrão
+	})
+
 	// 4. Inicializar provedores
 	cryptoProvider := provider.NewBcryptProvider(bcrypt.DefaultCost)
 	tokenProvider := provider.NewJWTProvider("secret-key", 24*time.Hour)
+	blacklistProvider := providers.NewRedisBlacklist(rdb)
 
 	// 5. Inicializar casos de uso
 	registerUseCase := usecase.NewRegisterUsecase(userRepo, cryptoProvider)
-	loggerUseCase := usecase.NewLoginUsecase(userRepo, cryptoProvider)
+	loggerUseCase := usecase.NewLoginUsecase(
+		userRepo, cryptoProvider, tokenProvider, blacklistProvider,
+	)
 	requestPasswordResetUC := usecase.NewRequestPasswordReset(userRepo, emailService)
 	resetPasswordUC := usecase.NewResetPassword(userRepo)
 	updateNameUC := usecase.NewUpdateNameUseCase(userRepo)
@@ -66,7 +79,7 @@ func main() {
 	router := gin.Default()
 
 	// 7.1 Criar middleware
-	authMiddleware := middleware.JWTAuthMiddleware(tokenProvider)
+	authMiddleware := middleware.JWTAuthMiddleware(tokenProvider, blacklistProvider)
 
 	// 8. Registrar rotas
 	router.POST("/auth/register", registerHTTPHandler.Handle)
