@@ -29,6 +29,10 @@ func NewRegisterUsecase(
 }
 
 func (h *RegisterUsecase) Execute(ctx context.Context, input dto.RegisterParams) error {
+	if input.Password != input.PasswordConfirmation {
+		return errors.New("Invalid Password and confirmation")
+	}
+
 	name, err := vo.NewName(input.Name, 3, 100)
 	if err != nil {
 		return errors.New("invalid name: " + err.Error())
@@ -47,6 +51,15 @@ func (h *RegisterUsecase) Execute(ctx context.Context, input dto.RegisterParams)
 		return msgerror.AnErrUserExists
 	}
 
+	var imageURL vo.URL
+	if input.ImageURL != "" {
+		url, err := vo.NewURL(input.ImageURL)
+		if err != nil {
+			return errors.New("invalid image URL: " + err.Error())
+		}
+		imageURL = url
+	}
+
 	hashedPassword, err := h.cryptoProvider.Encrypt(input.Password)
 	if err != nil {
 		return errors.New("failed to secure password")
@@ -62,7 +75,7 @@ func (h *RegisterUsecase) Execute(ctx context.Context, input dto.RegisterParams)
 		Name:         name,
 		Email:        email,
 		PasswordHash: passwordHashed,
-		ImageURL:     vo.URL{},
+		ImageURL:     imageURL,
 		CreatedAt:    time.Now(),
 	}
 

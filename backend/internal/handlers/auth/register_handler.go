@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
 	usecase "github.com/eskokado/startup-auth-go/backend/internal/port/auth"
@@ -40,13 +41,14 @@ func (h *RegisterHandler) Handle(c *gin.Context) {
 	}
 
 	params := dto.RegisterParams{
-		Name:     input.Name,
-		Email:    input.Email,
-		Password: input.Password,
+		Name:                 input.Name,
+		Email:                input.Email,
+		Password:             input.Password,
+		PasswordConfirmation: input.PasswordConfirmation,
 	}
 
 	if err := h.registerUseCase.Execute(c.Request.Context(), params); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to register user"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to register user: error %s", err)})
 		return
 	}
 

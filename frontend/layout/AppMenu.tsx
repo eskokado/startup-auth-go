@@ -65,6 +65,11 @@ const AppMenu = () => {
                     icon: 'pi pi-fw pi-user',
                     items: [
                         {
+                            label: 'Register',
+                            icon: 'pi pi-fw pi-sign-in',
+                            to: '/auth/register'
+                        },
+                        {
                             label: 'Login',
                             icon: 'pi pi-fw pi-sign-in',
                             to: '/auth/login'

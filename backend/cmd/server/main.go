@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/joho/godotenv"
@@ -80,7 +81,17 @@ func main() {
 	// 7. Configurar roteador Gin
 	router := gin.Default()
 
-	// 7.1 Criar middleware
+	// 7.1 Configurar CORS (ANTES dos middlewares de autenticação)
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000"}, // Frontend URL
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
+
+	// 7.2 Criar middleware de autenticação (DEPOIS do CORS)
 	authMiddleware := middleware.JWTAuthMiddleware(tokenProvider, blacklistProvider)
 
 	// 8. Registrar rotas
