@@ -12,20 +12,19 @@ type PasswordHash struct {
 }
 
 func NewPasswordHash(password string) (PasswordHash, error) {
-	if isBcryptHash(password) {
-		return PasswordHash{value: password}, nil
+	if !isBcryptHash(password) {
+		if len(password) < 8 {
+			return PasswordHash{}, msgerror.AnErrPasswordInvalid
+		}
+
+		hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err != nil {
+			return PasswordHash{}, err
+		}
+		return PasswordHash{value: string(hash)}, nil
 	}
 
-	if len(password) < 8 {
-		return PasswordHash{}, msgerror.AnErrPasswordInvalid
-	}
-
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return PasswordHash{}, err
-	}
-
-	return PasswordHash{value: string(hash)}, nil
+	return PasswordHash{value: password}, nil
 }
 
 func (ph PasswordHash) String() string {
