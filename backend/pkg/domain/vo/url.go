@@ -16,7 +16,11 @@ func NewURL(rawURL string) (URL, error) {
 		return URL{}, nil
 	}
 
-	parsed, _ := url.ParseRequestURI(rawURL)
+	// Corrigido: tratar erro corretamente
+	parsed, err := url.ParseRequestURI(rawURL)
+	if err != nil {
+		return URL{}, msgerror.AnErrInvalidURL
+	}
 
 	// Validação adicional para scheme e host
 	if !isValidScheme(parsed.Scheme) || parsed.Host == "" {
@@ -38,7 +42,6 @@ func (u URL) Equal(other URL) bool {
 	return u.value == other.value
 }
 
-// Adicionando método IsEmpty para consistência
 func (u URL) IsEmpty() bool {
 	return u.value == ""
 }
