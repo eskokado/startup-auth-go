@@ -20,22 +20,14 @@ export type UpdatePasswordType = {
 }
 
 export const authApi = {
-    // login: async (email: string, password: string) => {
-    //     const response = await api.post('/auth/v1/users/sign_in', {
-    //         email,
-    //         password
-    //     });
+    login: async (email: string, password: string) => {
+        const response = await api.post('/auth/login', {
+            email,
+            password
+        });
 
-    //     localStorage.setItem('access-token', response.headers['access-token']);
-    //     localStorage.setItem('client', response.headers['client']);
-    //     localStorage.setItem('uid', response.headers['uid']);
-    //     localStorage.setItem('user-kind', response.headers['user-kind']);
-    //     localStorage.setItem('organization', response.headers['organization']);
-    //     localStorage.setItem('organization-id', response.headers['organization-id']);
-    //     localStorage.setItem('subscription-expires-at', response.headers['subscription-expires-at']);
-
-    //     return response.data;
-    // },
+        return response.data;
+    },
 
     register: async (props: RegisterType) => {
         const response = await api.post('/auth/register', {
