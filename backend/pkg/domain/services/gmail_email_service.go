@@ -56,7 +56,7 @@ func (s *EmailService) SendResetPasswordEmail(email vo.Email, token string) erro
 	m.SetHeader("To", email.String())
 	m.SetHeader("Subject", "Redefinição de Senha")
 
-	resetLink := fmt.Sprintf("%s?token=%s", s.frontendURL, token)
+	resetLink := fmt.Sprintf("%s?reset_password_token=%s", s.frontendURL, token)
 
 	htmlBody := fmt.Sprintf(`
 		<html>
