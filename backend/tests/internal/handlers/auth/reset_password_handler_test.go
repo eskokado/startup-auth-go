@@ -13,87 +13,107 @@ import (
 	"github.com/eskokado/startup-auth-go/backend/tests/mocks"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestResetPasswordHandler_Handle(t *testing.T) {
-	gin.SetMode(gin.TestMode) // Adiciona para suprimir logs
+	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
 		name         string
 		input        interface{}
-		mockError    error
+		mockSetup    func(uc *mocks.MockResetPasswordUseCase)
 		expectedCode int
-		expectedBody gin.H
+		expectedBody string
 	}{
 		{
-			name:         "invalid request body",
-			input:        "{invalid}",
+			name:  "invalid request body",
+			input: "{invalid}",
+			mockSetup: func(uc *mocks.MockResetPasswordUseCase) {
+				// Não configurar mock pois não deve ser chamado
+			},
 			expectedCode: http.StatusBadRequest,
-			expectedBody: gin.H{"error": "invalid request body"},
+			expectedBody: `{"error":"invalid request body"}`,
 		},
 		{
-			name:         "invalid token",
-			input:        dto.ResetPasswordInput{Token: "invalid", Password: "newpass"},
-			mockError:    msgerror.AnErrInvalidToken,
+			name:  "invalid token",
+			input: dto.ResetPasswordInput{Token: "invalid", Password: "newpass"},
+			mockSetup: func(uc *mocks.MockResetPasswordUseCase) {
+				uc.On("Execute", mock.Anything, "invalid", "newpass").
+					Return(msgerror.AnErrInvalidToken)
+			},
 			expectedCode: http.StatusBadRequest,
-			expectedBody: gin.H{"error": msgerror.AnErrInvalidToken.Error()},
+			expectedBody: `{"error":"invalid token"}`,
 		},
 		{
-			name:         "expired token",
-			input:        dto.ResetPasswordInput{Token: "expired", Password: "newpass"},
-			mockError:    msgerror.AnErrExpiredToken,
+			name:  "expired token",
+			input: dto.ResetPasswordInput{Token: "expired", Password: "newpass"},
+			mockSetup: func(uc *mocks.MockResetPasswordUseCase) {
+				uc.On("Execute", mock.Anything, "expired", "newpass").
+					Return(msgerror.AnErrExpiredToken)
+			},
 			expectedCode: http.StatusBadRequest,
-			expectedBody: gin.H{"error": msgerror.AnErrExpiredToken.Error()},
+			expectedBody: `{"error":"expired token"}`,
 		},
 		{
-			name:         "internal server error",
-			input:        dto.ResetPasswordInput{Token: "valid", Password: "newpass"},
-			mockError:    assert.AnError,
+			name:  "internal server error",
+			input: dto.ResetPasswordInput{Token: "valid", Password: "newpass"},
+			mockSetup: func(uc *mocks.MockResetPasswordUseCase) {
+				uc.On("Execute", mock.Anything, "valid", "newpass").
+					Return(assert.AnError)
+			},
 			expectedCode: http.StatusInternalServerError,
-			expectedBody: gin.H{"error": "failed to reset password"},
+			expectedBody: `{"error":"failed to reset password"}`,
 		},
 		{
-			name:         "success",
-			input:        dto.ResetPasswordInput{Token: "valid", Password: "newpass"},
-			mockError:    nil,
-			expectedCode: http.StatusNoContent, // Corrigido para 204
-			expectedBody: nil,
+			name:  "success",
+			input: dto.ResetPasswordInput{Token: "valid", Password: "newpass"},
+			mockSetup: func(uc *mocks.MockResetPasswordUseCase) {
+				uc.On("Execute", mock.Anything, "valid", "newpass").
+					Return(nil)
+			},
+			expectedCode: http.StatusNoContent,
+			expectedBody: "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Configura o mock corretamente
-			uc := &mocks.MockResetPasswordUseCase{
-				Err: tt.mockError, // Injeta o erro
+			// Cria mock do caso de uso
+			uc := new(mocks.MockResetPasswordUseCase)
+			if tt.mockSetup != nil {
+				tt.mockSetup(uc)
 			}
 
+			// Cria handler com o mock
 			handler := handlers.NewResetPasswordHandler(uc)
-			w := httptest.NewRecorder()
-			c, _ := gin.CreateTestContext(w)
 
-			// Cria a requisição corretamente mesmo para corpo inválido
-			var req *http.Request
+			// Configura o roteador Gin
+			router := gin.New()
+			router.POST("/reset-password", handler.Handle)
+
+			// Cria a requisição
+			var bodyBytes []byte
 			switch v := tt.input.(type) {
 			case string:
-				req = httptest.NewRequest(http.MethodPost, "/reset-password", bytes.NewReader([]byte(v)))
+				bodyBytes = []byte(v)
 			default:
-				body, _ := json.Marshal(tt.input)
-				req = httptest.NewRequest(http.MethodPost, "/reset-password", bytes.NewReader(body))
+				bodyBytes, _ = json.Marshal(tt.input)
 			}
+
+			req := httptest.NewRequest(http.MethodPost, "/reset-password", bytes.NewReader(bodyBytes))
 			req.Header.Set("Content-Type", "application/json")
-			c.Request = req
 
-			handler.Handle(c)
+			// Executa a requisição
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
 
-			assert.Equal(t, tt.expectedCode, w.Code)
-			if tt.expectedBody != nil {
-				var response gin.H
-				_ = json.Unmarshal(w.Body.Bytes(), &response)
-				assert.Equal(t, tt.expectedBody, response)
-			} else if w.Code != http.StatusNoContent {
-				assert.Empty(t, w.Body.String(), "Response body should be empty")
-			}
+			// Verificações
+			assert.Equal(t, tt.expectedCode, w.Code, "Código de status HTTP incorreto")
+			assert.Equal(t, tt.expectedBody, w.Body.String(), "Corpo da resposta incorreto")
+
+			// Verifica se o mock foi chamado conforme esperado
+			uc.AssertExpectations(t)
 		})
 	}
 }

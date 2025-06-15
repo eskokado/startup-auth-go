@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 
 	usecase "github.com/eskokado/startup-auth-go/backend/internal/port/auth"
@@ -25,8 +26,9 @@ func (h *ResetPasswordHandler) Handle(c *gin.Context) {
 	}
 
 	if err := h.useCase.Execute(c.Request.Context(), input.Token, input.Password); err != nil {
-		switch err {
-		case msgerror.AnErrInvalidToken, msgerror.AnErrExpiredToken:
+		switch {
+		case errors.Is(err, msgerror.AnErrInvalidToken),
+			errors.Is(err, msgerror.AnErrExpiredToken):
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to reset password"})
@@ -34,5 +36,6 @@ func (h *ResetPasswordHandler) Handle(c *gin.Context) {
 		return
 	}
 
-	c.AbortWithStatus(http.StatusNoContent)
+	// Garante que nenhum conteúdo seja retornado
+	c.Status(http.StatusNoContent)
 }

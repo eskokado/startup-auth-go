@@ -93,11 +93,10 @@ func (r *GormUserRepository) GetByEmail(ctx context.Context, email vo.Email) (*e
 	var dbUser GormUser
 	result := r.db.WithContext(ctx).Where("email = ?", email.String()).First(&dbUser)
 
-	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		return nil, nil
-	}
-
 	if result.Error != nil {
+		if r.IsErrNotFound(result.Error) {
+			return nil, nil
+		}
 		return nil, result.Error
 	}
 
@@ -108,11 +107,10 @@ func (r *GormUserRepository) GetByResetToken(ctx context.Context, token string) 
 	var dbUser GormUser
 	result := r.db.WithContext(ctx).Where("password_reset_token = ?", token).First(&dbUser)
 
-	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		return nil, nil
-	}
-
 	if result.Error != nil {
+		if r.IsErrNotFound(result.Error) {
+			return nil, nil
+		}
 		return nil, result.Error
 	}
 
@@ -123,13 +121,16 @@ func (r *GormUserRepository) GetByID(ctx context.Context, id vo.ID) (*entity.Use
 	var dbUser GormUser
 	result := r.db.WithContext(ctx).Where("id = ?", id.String()).First(&dbUser)
 
-	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		return nil, nil
-	}
-
 	if result.Error != nil {
+		if r.IsErrNotFound(result.Error) {
+			return nil, nil
+		}
 		return nil, result.Error
 	}
 
 	return r.fromDBModel(&dbUser)
+}
+
+func (r *GormUserRepository) IsErrNotFound(err error) bool {
+	return errors.Is(err, gorm.ErrRecordNotFound)
 }

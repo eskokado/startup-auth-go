@@ -16,7 +16,6 @@ export type ForgotPasswordType = {
 export type UpdatePasswordType = {
     reset_password_token: string
     password: string
-    password_confirmation: string
 }
 
 export const authApi = {
@@ -41,27 +40,27 @@ export const authApi = {
         return response.data;
     },
 
-    // forgotPassword: async (props: ForgotPasswordType) => {
-    //     const response = await api.post('/auth/v1/users/password', {
-    //         email: props.email,
-    //         redirect_url: props.redirect_url,
-    //     });
+    forgotPassword: async (props: ForgotPasswordType) => {
+        const response = await api.post('/auth/forgot-password', {
+            email: props.email,
+            redirect_url: props.redirect_url,
+        });
 
-    //     return response.data;
-    // },
+        return response.data;
+    },
 
-    // updatePassword: async (props: UpdatePasswordType) => {
-    //     const response = await api.patch('/auth/v1/users/password', {
-    //         reset_password_token: props.reset_password_token,
-    //         password: props.password,
-    //         password_confirmation: props.password_confirmation,
-    //     });
+    updatePassword: async (props: UpdatePasswordType) => {
+        console.log("erro aqui", props)
+        const response = await api.post('/auth/reset-password', {
+            reset_password_token: props.reset_password_token,
+            password: props.password
+        });
 
-    //     return response.data;
-    // },
+        return response.data;
+    },
 
-    // logout: async () => {
-    //     await api.delete('/auth/v1/users/sign_out');
-    //     localStorage.clear();
-    // }
+    logout: async () => {
+        await api.delete('/auth/logout');
+        localStorage.clear();
+    }
 };

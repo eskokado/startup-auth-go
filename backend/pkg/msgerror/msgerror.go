@@ -1,6 +1,9 @@
 package msgerror
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 var (
 	AnErrInvalidCredentials = errors.New("invalid credentials")
@@ -32,3 +35,16 @@ var (
 	AnErrExpiredToken       = errors.New("expired token")
 	AnErrSendMessageByEmail = errors.New("error send message by email")
 )
+
+// Wrap adiciona contexto a um erro
+func Wrap(msg string, err error) error {
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("%s: %w", msg, err)
+}
+
+// Is compara erros considerando o unwrap
+func Is(err, target error) bool {
+	return errors.Is(err, target)
+}
