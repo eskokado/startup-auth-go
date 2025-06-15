@@ -22,7 +22,11 @@ func (uc *ResetPasswordUsecase) Execute(
 	token, newPassword string,
 ) error {
 	user, err := uc.userRepo.GetByResetToken(ctx, token)
-	if err != nil || user == nil {
+	if err != nil {
+		return msgerror.Wrap("falha ao buscar usuário pelo token", err)
+	}
+
+	if user == nil {
 		return msgerror.AnErrInvalidToken
 	}
 
@@ -32,13 +36,15 @@ func (uc *ResetPasswordUsecase) Execute(
 
 	newHash, err := vo.NewPasswordHash(newPassword)
 	if err != nil {
-		return err
+		return msgerror.Wrap("falha ao gerar hash da senha", err)
 	}
 
 	user.PasswordHash = newHash
 	user.ClearResetToken()
 
-	_, err = uc.userRepo.Save(ctx, user)
+	if _, err := uc.userRepo.Save(ctx, user); err != nil {
+		return msgerror.Wrap("falha ao salvar usuário", err)
+	}
 
-	return err
+	return nil
 }
