@@ -5,6 +5,10 @@ import (
 	"fmt"
 )
 
+type ValidationErrors struct {
+	FieldErrors map[string]string // Campo -> mensagem
+}
+
 var (
 	AnErrInvalidCredentials = errors.New("invalid credentials")
 	AnErrUserNotFound       = errors.New("user not found")
@@ -36,7 +40,6 @@ var (
 	AnErrSendMessageByEmail = errors.New("error send message by email")
 )
 
-// Wrap adiciona contexto a um erro
 func Wrap(msg string, err error) error {
 	if err == nil {
 		return nil
@@ -44,7 +47,24 @@ func Wrap(msg string, err error) error {
 	return fmt.Errorf("%s: %w", msg, err)
 }
 
-// Is compara erros considerando o unwrap
 func Is(err, target error) bool {
 	return errors.Is(err, target)
+}
+
+func (v ValidationErrors) Error() string {
+	return "validation failed with multiple errors"
+}
+
+func NewValidationErrors() *ValidationErrors {
+	return &ValidationErrors{
+		FieldErrors: make(map[string]string),
+	}
+}
+
+func (v *ValidationErrors) Add(field, message string) {
+	v.FieldErrors[field] = message
+}
+
+func (v *ValidationErrors) HasErrors() bool {
+	return len(v.FieldErrors) > 0
 }
