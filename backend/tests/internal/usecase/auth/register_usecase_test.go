@@ -29,7 +29,30 @@ func TestRegisterWithPasswordMismatch(t *testing.T) {
 		PasswordConfirmation: "different",
 	})
 
-	assert.ErrorContains(t, err, "Invalid Password and confirmation")
+	var valErr *msgerror.ValidationErrors
+	assert.ErrorAs(t, err, &valErr)
+	assert.Equal(t, "passwords do not match", valErr.FieldErrors["password_confirmation"])
+
+	// Não deve chamar GetByEmail porque há erro de validação
+	mockRepo.AssertNotCalled(t, "GetByEmail")
+	mockCrypto.AssertNotCalled(t, "Encrypt")
+}
+
+func TestRegisterWithShortPassword(t *testing.T) {
+	mockRepo := new(mocks.MockUserRepo)
+	mockCrypto := new(mocks.MockCrypto)
+
+	handler := usecase.NewRegisterUsecase(mockRepo, mockCrypto)
+	err := handler.Execute(context.Background(), dto.RegisterParams{
+		Name:                 "Valid Name",
+		Email:                "valid@test.com",
+		Password:             "short",
+		PasswordConfirmation: "short",
+	})
+
+	var valErr *msgerror.ValidationErrors
+	assert.ErrorAs(t, err, &valErr)
+	assert.Equal(t, "must be at least 8 characters", valErr.FieldErrors["password"])
 	mockRepo.AssertNotCalled(t, "GetByEmail")
 	mockCrypto.AssertNotCalled(t, "Encrypt")
 }
@@ -43,7 +66,9 @@ func TestRegisterWithInvalidName(t *testing.T) {
 		Name: "A",
 	})
 
-	assert.ErrorContains(t, err, "invalid name")
+	var valErr *msgerror.ValidationErrors
+	assert.ErrorAs(t, err, &valErr)
+	assert.Contains(t, valErr.FieldErrors["name"], "name too short")
 	mockRepo.AssertNotCalled(t, "GetByEmail")
 	mockCrypto.AssertNotCalled(t, "Encrypt")
 }
@@ -58,7 +83,9 @@ func TestRegisterWithInvalidEmail(t *testing.T) {
 		Email: "invalid-email",
 	})
 
-	assert.ErrorContains(t, err, "invalid email")
+	var valErr *msgerror.ValidationErrors
+	assert.ErrorAs(t, err, &valErr)
+	assert.Contains(t, valErr.FieldErrors["email"], "invalid email format")
 	mockRepo.AssertNotCalled(t, "GetByEmail")
 	mockCrypto.AssertNotCalled(t, "Encrypt")
 }
@@ -74,11 +101,13 @@ func TestRegisterWithExistingUser(t *testing.T) {
 	err := handler.Execute(context.Background(), dto.RegisterParams{
 		Name:                 "Existing User",
 		Email:                "existing@test.com",
-		Password:             "any",
-		PasswordConfirmation: "any", // Adicionado confirmação
+		Password:             "valid-password", // Usar senha válida
+		PasswordConfirmation: "valid-password", // Igual à senha
 	})
 
-	assert.ErrorIs(t, err, msgerror.AnErrUserExists)
+	var valErr *msgerror.ValidationErrors
+	assert.ErrorAs(t, err, &valErr)
+	assert.Equal(t, msgerror.AnErrUserExists.Error(), valErr.FieldErrors["email"])
 	mockRepo.AssertExpectations(t)
 	mockCrypto.AssertNotCalled(t, "Encrypt")
 }
@@ -92,8 +121,8 @@ func TestRegisterWithEdgeCaseNameError(t *testing.T) {
 		inputName     string
 		expectedError string
 	}{
-		{"Too Short", "ab", "invalid name"},
-		{"Too Long", strings.Repeat("a", 101), "invalid name"},
+		{"Too Short", "ab", "name too short"},
+		{"Too Long", strings.Repeat("a", 101), "name too long"},
 	}
 
 	for _, tc := range testCases {
@@ -104,69 +133,13 @@ func TestRegisterWithEdgeCaseNameError(t *testing.T) {
 				Email: "test@test.com",
 			})
 
-			assert.ErrorContains(t, err, tc.expectedError)
+			var valErr *msgerror.ValidationErrors
+			assert.ErrorAs(t, err, &valErr)
+			assert.Contains(t, valErr.FieldErrors["name"], tc.expectedError)
 			mockRepo.AssertNotCalled(t, "GetByEmail")
 			mockCrypto.AssertNotCalled(t, "Encrypt")
 		})
 	}
-}
-
-func TestRegisterWithInvalidPasswordHash(t *testing.T) {
-	mockRepo := new(mocks.MockUserRepo)
-	mockCrypto := new(mocks.MockCrypto)
-
-	email, _ := vo.NewEmail("test@test.com")
-	mockRepo.On("GetByEmail", mock.Anything, email).Return((*entity.User)(nil), msgerror.AnErrNotFound)
-
-	// Hash que não é bcrypt e tem menos de 8 caracteres
-	invalidHash := "short"
-	mockCrypto.On("Encrypt", "any").Return(invalidHash, nil)
-
-	handler := usecase.NewRegisterUsecase(mockRepo, mockCrypto)
-	err := handler.Execute(context.Background(), dto.RegisterParams{
-		Name:                 "Valid Name",
-		Email:                "test@test.com",
-		Password:             "any",
-		PasswordConfirmation: "any",
-	})
-
-	assert.ErrorContains(t, err, "failed to secure password")
-	mockRepo.AssertExpectations(t)
-	mockCrypto.AssertExpectations(t)
-	mockRepo.AssertNotCalled(t, "Save")
-}
-
-func TestRegisterSuccessfully(t *testing.T) {
-	mockRepo := new(mocks.MockUserRepo)
-	mockCrypto := new(mocks.MockCrypto)
-
-	name, _ := vo.NewName("New User", 0, 0)
-	passwordHash, _ := vo.NewPasswordHash("hashed-password")
-	email, _ := vo.NewEmail("new@test.com")
-
-	mockRepo.On("GetByEmail", mock.Anything, email).Return((*entity.User)(nil), msgerror.AnErrNotFound)
-
-	newUser := &entity.User{
-		ID:           vo.NewID(),
-		Name:         name,
-		Email:        email,
-		PasswordHash: passwordHash,
-		ImageURL:     vo.URL{},
-		CreatedAt:    time.Now(),
-	}
-	mockRepo.On("Save", mock.Anything, mock.Anything).Return(newUser, nil)
-	mockCrypto.On("Encrypt", "valid-password").Return("hashed-password", nil)
-
-	handler := usecase.NewRegisterUsecase(mockRepo, mockCrypto)
-	err := handler.Execute(context.Background(), dto.RegisterParams{
-		Name:                 "New User",
-		Email:                "new@test.com",
-		Password:             "valid-password",
-		PasswordConfirmation: "valid-password",
-	})
-	assert.NoError(t, err)
-	mockRepo.AssertExpectations(t)
-	mockCrypto.AssertExpectations(t)
 }
 
 func TestRegisterWithUnexpectedErrorOnGetByEmail(t *testing.T) {
@@ -181,11 +154,13 @@ func TestRegisterWithUnexpectedErrorOnGetByEmail(t *testing.T) {
 	err := handler.Execute(context.Background(), dto.RegisterParams{
 		Name:                 "Valid Name",
 		Email:                "test@test.com",
-		Password:             "any",
-		PasswordConfirmation: "any", // Adicionado confirmação
+		Password:             "valid-password", // Usar senha válida
+		PasswordConfirmation: "valid-password", // Igual à senha
 	})
 
-	assert.ErrorIs(t, err, expectedErr)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to check email existence")
+	assert.Contains(t, err.Error(), "unexpected error")
 	mockRepo.AssertExpectations(t)
 	mockCrypto.AssertNotCalled(t, "Encrypt")
 }
@@ -196,17 +171,20 @@ func TestRegisterWithEncryptError(t *testing.T) {
 
 	email, _ := vo.NewEmail("test@test.com")
 	mockRepo.On("GetByEmail", mock.Anything, email).Return((*entity.User)(nil), msgerror.AnErrNotFound)
-	mockCrypto.On("Encrypt", "any").Return("", errors.New("encryption failed"))
+
+	mockCrypto.On("Encrypt", "valid-password").Return("", errors.New("encryption failed"))
 
 	handler := usecase.NewRegisterUsecase(mockRepo, mockCrypto)
 	err := handler.Execute(context.Background(), dto.RegisterParams{
 		Name:                 "Valid Name",
 		Email:                "test@test.com",
-		Password:             "any",
-		PasswordConfirmation: "any", // Adicionado confirmação
+		Password:             "valid-password",
+		PasswordConfirmation: "valid-password",
 	})
 
-	assert.ErrorContains(t, err, "failed to secure password")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to secure password")
+	assert.Contains(t, err.Error(), "encryption failed")
 	mockRepo.AssertExpectations(t)
 	mockCrypto.AssertExpectations(t)
 }
@@ -217,19 +195,50 @@ func TestRegisterWithPasswordHashError(t *testing.T) {
 
 	email, _ := vo.NewEmail("test@test.com")
 	mockRepo.On("GetByEmail", mock.Anything, email).Return((*entity.User)(nil), msgerror.AnErrNotFound)
-	mockCrypto.On("Encrypt", "any").Return("", nil)
+
+	// Forçar erro na criação do PasswordHash
+	mockCrypto.On("Encrypt", "valid-password").Return("", errors.New("invalid hash format"))
 
 	handler := usecase.NewRegisterUsecase(mockRepo, mockCrypto)
 	err := handler.Execute(context.Background(), dto.RegisterParams{
 		Name:                 "Valid Name",
 		Email:                "test@test.com",
-		Password:             "any",
-		PasswordConfirmation: "any", // Adicionado confirmação
+		Password:             "valid-password",
+		PasswordConfirmation: "valid-password",
 	})
 
-	assert.ErrorContains(t, err, "failed to secure password")
-	mockRepo.AssertExpectations(t)
-	mockCrypto.AssertExpectations(t)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to secure password") // Atualizar mensagem esperada
+	assert.Contains(t, err.Error(), "invalid hash format")
+
+	// Garantir que o Save não foi chamado
+	mockRepo.AssertNotCalled(t, "Save")
+}
+
+func TestRegisterWithEmptyPasswordHash(t *testing.T) {
+	mockRepo := new(mocks.MockUserRepo)
+	mockCrypto := new(mocks.MockCrypto)
+
+	email, _ := vo.NewEmail("test@test.com")
+	mockRepo.On("GetByEmail", mock.Anything, email).Return((*entity.User)(nil), msgerror.AnErrNotFound)
+
+	// Simular situação onde o Encrypt retorna string vazia sem erro
+	mockCrypto.On("Encrypt", "valid-password").Return("", nil)
+
+	handler := usecase.NewRegisterUsecase(mockRepo, mockCrypto)
+	err := handler.Execute(context.Background(), dto.RegisterParams{
+		Name:                 "Valid Name",
+		Email:                "test@test.com",
+		Password:             "valid-password",
+		PasswordConfirmation: "valid-password",
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create password hash")
+	assert.Contains(t, err.Error(), "password must be at least 8 characters")
+
+	// Garantir que o Save não foi chamado
+	mockRepo.AssertNotCalled(t, "Save")
 }
 
 func TestRegisterWithSaveError(t *testing.T) {
@@ -238,18 +247,21 @@ func TestRegisterWithSaveError(t *testing.T) {
 
 	email, _ := vo.NewEmail("test@test.com")
 	mockRepo.On("GetByEmail", mock.Anything, email).Return((*entity.User)(nil), msgerror.AnErrNotFound)
-	mockCrypto.On("Encrypt", "any").Return("hashed-password", nil)
+
+	mockCrypto.On("Encrypt", "valid-password").Return("hashed-password", nil)
 	mockRepo.On("Save", mock.Anything, mock.Anything).Return(nil, errors.New("db error"))
 
 	handler := usecase.NewRegisterUsecase(mockRepo, mockCrypto)
 	err := handler.Execute(context.Background(), dto.RegisterParams{
 		Name:                 "Valid Name",
 		Email:                "test@test.com",
-		Password:             "any",
-		PasswordConfirmation: "any", // Adicionado confirmação
+		Password:             "valid-password",
+		PasswordConfirmation: "valid-password",
 	})
 
-	assert.ErrorContains(t, err, "failed to create user")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create user")
+	assert.Contains(t, err.Error(), "db error")
 	mockRepo.AssertExpectations(t)
 	mockCrypto.AssertExpectations(t)
 }
@@ -258,20 +270,29 @@ func TestRegisterWhenSaveReturnsNilUser(t *testing.T) {
 	mockRepo := new(mocks.MockUserRepo)
 	mockCrypto := new(mocks.MockCrypto)
 
-	email, _ := vo.NewEmail("test@test.com")
+	// DADOS VÁLIDOS PARA PASSAR NAS VALIDAÇÕES INICIAIS
+	validName := "Valid Name"
+	validEmail := "test@test.com"
+	validPassword := "valid-password123!"
+
+	// Configurar mocks para fluxo completo
+	email, _ := vo.NewEmail(validEmail)
 	mockRepo.On("GetByEmail", mock.Anything, email).Return((*entity.User)(nil), msgerror.AnErrNotFound)
-	mockCrypto.On("Encrypt", "any").Return("hashed-password", nil)
-	mockRepo.On("Save", mock.Anything, mock.Anything).Return(nil, nil)
+	mockCrypto.On("Encrypt", validPassword).Return("hashed-password", nil)
+	mockRepo.On("Save", mock.Anything, mock.Anything).Return(nil, nil) // Simular retorno nil do Save
 
 	handler := usecase.NewRegisterUsecase(mockRepo, mockCrypto)
 	err := handler.Execute(context.Background(), dto.RegisterParams{
-		Name:                 "Valid Name",
-		Email:                "test@test.com",
-		Password:             "any",
-		PasswordConfirmation: "any", // Adicionado confirmação
+		Name:                 validName,
+		Email:                validEmail,
+		Password:             validPassword,
+		PasswordConfirmation: validPassword,
 	})
 
+	// Verificar erro específico
 	assert.ErrorIs(t, err, msgerror.AnErrNoSavedUser)
+
+	// Verificar chamadas dos mocks
 	mockRepo.AssertExpectations(t)
 	mockCrypto.AssertExpectations(t)
 }
@@ -282,20 +303,18 @@ func TestRegisterWithCustomNameLimits(t *testing.T) {
 
 	handler := usecase.NewRegisterUsecase(mockRepo, mockCrypto)
 	err := handler.Execute(context.Background(), dto.RegisterParams{
-		Name:  "AB",
+		Name:  "AB", // Muito curto
 		Email: "test@test.com",
 	})
 
-	assert.ErrorContains(t, err, "invalid name")
+	var valErr *msgerror.ValidationErrors
+	assert.ErrorAs(t, err, &valErr)
+	assert.Contains(t, valErr.FieldErrors["name"], "name too short")
 }
 
 func TestRegisterWithInvalidImageURL(t *testing.T) {
 	mockRepo := new(mocks.MockUserRepo)
 	mockCrypto := new(mocks.MockCrypto)
-
-	// Configurar o mock para GetByEmail
-	email, _ := vo.NewEmail("valid@test.com")
-	mockRepo.On("GetByEmail", mock.Anything, email).Return((*entity.User)(nil), msgerror.AnErrNotFound)
 
 	handler := usecase.NewRegisterUsecase(mockRepo, mockCrypto)
 	err := handler.Execute(context.Background(), dto.RegisterParams{
@@ -303,13 +322,16 @@ func TestRegisterWithInvalidImageURL(t *testing.T) {
 		Email:                "valid@test.com",
 		Password:             "password123",
 		PasswordConfirmation: "password123",
-		ImageURL:             "invalid-url", // URL inválida
+		ImageURL:             "invalid-url",
 	})
 
-	assert.ErrorContains(t, err, "invalid image URL")
-	mockRepo.AssertExpectations(t) // Verifica que GetByEmail foi chamado
+	var valErr *msgerror.ValidationErrors
+	assert.ErrorAs(t, err, &valErr)
+	assert.Contains(t, valErr.FieldErrors["image_url"], "invalid URL format")
+
+	// Não deve chamar operações posteriores
+	mockRepo.AssertNotCalled(t, "GetByEmail")
 	mockCrypto.AssertNotCalled(t, "Encrypt")
-	mockRepo.AssertNotCalled(t, "Save")
 }
 
 func TestRegisterWithValidImageURL(t *testing.T) {
@@ -341,7 +363,7 @@ func TestRegisterWithValidImageURL(t *testing.T) {
 		Email:                "new@test.com",
 		Password:             "valid-password",
 		PasswordConfirmation: "valid-password",
-		ImageURL:             "https://example.com/image.jpg", // URL válida
+		ImageURL:             "https://example.com/image.jpg",
 	})
 
 	assert.NoError(t, err)
@@ -377,10 +399,73 @@ func TestRegisterWithEmptyImageURL(t *testing.T) {
 		Email:                "new@test.com",
 		Password:             "valid-password",
 		PasswordConfirmation: "valid-password",
-		ImageURL:             "", // URL vazia
+		ImageURL:             "",
 	})
 
 	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+	mockCrypto.AssertExpectations(t)
+}
+
+func TestRegisterWithEmptyPassword(t *testing.T) {
+	mockRepo := new(mocks.MockUserRepo)
+	mockCrypto := new(mocks.MockCrypto)
+
+	handler := usecase.NewRegisterUsecase(mockRepo, mockCrypto)
+	err := handler.Execute(context.Background(), dto.RegisterParams{
+		Name:                 "Valid Name",
+		Email:                "valid@test.com",
+		Password:             "",
+		PasswordConfirmation: "",
+	})
+
+	var valErr *msgerror.ValidationErrors
+	assert.ErrorAs(t, err, &valErr)
+	assert.Equal(t, "must be at least 8 characters", valErr.FieldErrors["password"])
+}
+
+func TestRegisterWithMultipleValidationErrors(t *testing.T) {
+	mockRepo := new(mocks.MockUserRepo)
+	mockCrypto := new(mocks.MockCrypto)
+
+	handler := usecase.NewRegisterUsecase(mockRepo, mockCrypto)
+	err := handler.Execute(context.Background(), dto.RegisterParams{
+		Name:                 "A",         // Nome muito curto
+		Email:                "invalid",   // E-mail inválido
+		Password:             "short",     // Senha curta
+		PasswordConfirmation: "different", // Confirmação diferente
+	})
+
+	var valErr *msgerror.ValidationErrors
+	assert.ErrorAs(t, err, &valErr)
+	assert.Len(t, valErr.FieldErrors, 4)
+	assert.Contains(t, valErr.FieldErrors["name"], "name too short")
+	assert.Contains(t, valErr.FieldErrors["email"], "invalid email format")
+	assert.Equal(t, "must be at least 8 characters", valErr.FieldErrors["password"])
+	assert.Equal(t, "passwords do not match", valErr.FieldErrors["password_confirmation"])
+	mockRepo.AssertNotCalled(t, "GetByEmail")
+	mockCrypto.AssertNotCalled(t, "Encrypt")
+}
+
+func TestRegisterWithValidDataButCryptoError(t *testing.T) {
+	mockRepo := new(mocks.MockUserRepo)
+	mockCrypto := new(mocks.MockCrypto)
+
+	email, _ := vo.NewEmail("test@test.com")
+	mockRepo.On("GetByEmail", mock.Anything, email).Return((*entity.User)(nil), msgerror.AnErrNotFound)
+	mockCrypto.On("Encrypt", "valid-password").Return("", errors.New("crypto error"))
+
+	handler := usecase.NewRegisterUsecase(mockRepo, mockCrypto)
+	err := handler.Execute(context.Background(), dto.RegisterParams{
+		Name:                 "Valid Name",
+		Email:                "test@test.com",
+		Password:             "valid-password",
+		PasswordConfirmation: "valid-password",
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to secure password")
+	assert.Contains(t, err.Error(), "crypto error")
 	mockRepo.AssertExpectations(t)
 	mockCrypto.AssertExpectations(t)
 }
