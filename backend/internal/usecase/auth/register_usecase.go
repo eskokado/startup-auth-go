@@ -29,47 +29,67 @@ func NewRegisterUsecase(
 }
 
 func (h *RegisterUsecase) Execute(ctx context.Context, input dto.RegisterParams) error {
+	validationErrs := msgerror.NewValidationErrors()
+
+	// Validação básica de campos
 	if input.Password != input.PasswordConfirmation {
-		return errors.New("Invalid Password and confirmation")
+		validationErrs.Add("password_confirmation", "passwords do not match")
+	}
+	if len(input.Password) < 8 {
+		validationErrs.Add("password", "must be at least 8 characters")
 	}
 
-	name, err := vo.NewName(input.Name, 3, 100)
-	if err != nil {
-		return errors.New("invalid name: " + err.Error())
+	// Validação de objetos de valor
+	name, nameErr := vo.NewName(input.Name, 3, 100)
+	if nameErr != nil {
+		validationErrs.Add("name", nameErr.Error())
 	}
 
-	email, err := vo.NewEmail(input.Email)
-	if err != nil {
-		return errors.New("invalid email: " + err.Error())
-	}
-
-	existingUser, err := h.userRepo.GetByEmail(ctx, email)
-	if err != nil && !errors.Is(err, msgerror.AnErrNotFound) {
-		return err
-	}
-	if existingUser != nil {
-		return msgerror.AnErrUserExists
+	email, emailErr := vo.NewEmail(input.Email)
+	if emailErr != nil {
+		validationErrs.Add("email", emailErr.Error())
 	}
 
 	var imageURL vo.URL
 	if input.ImageURL != "" {
-		url, err := vo.NewURL(input.ImageURL)
-		if err != nil {
-			return errors.New("invalid image URL: " + err.Error())
+		url, urlErr := vo.NewURL(input.ImageURL)
+		if urlErr != nil {
+			validationErrs.Add("image_url", urlErr.Error())
+		} else {
+			imageURL = url
 		}
-		imageURL = url
 	}
 
+	// Se houver erros de validação, retornar imediatamente
+	if validationErrs.HasErrors() {
+		return validationErrs
+	}
+
+	// Verificação de e-mail único (só se o e-mail for válido)
+	if emailErr == nil {
+		existingUser, err := h.userRepo.GetByEmail(ctx, email)
+		if err != nil && !errors.Is(err, msgerror.AnErrNotFound) {
+			// Erro de infraestrutura, não de validação
+			return msgerror.Wrap("failed to check email existence", err)
+		}
+		if existingUser != nil {
+			validationErrs.Add("email", msgerror.AnErrUserExists.Error())
+			return validationErrs
+		}
+	}
+
+	// Criptografia de senha
 	hashedPassword, err := h.cryptoProvider.Encrypt(input.Password)
 	if err != nil {
-		return errors.New("failed to secure password")
+		return msgerror.Wrap("failed to secure password", err)
 	}
 
 	passwordHashed, err := vo.NewPasswordHash(hashedPassword)
 	if err != nil {
-		return errors.New("failed to secure password")
+		return msgerror.Wrap("failed to create password hash", err)
 	}
 
+	// Criação do usuário
 	newUser := &entity.User{
 		ID:           vo.NewID(),
 		Name:         name,
@@ -79,9 +99,10 @@ func (h *RegisterUsecase) Execute(ctx context.Context, input dto.RegisterParams)
 		CreatedAt:    time.Now(),
 	}
 
+	// Persistência
 	savedUser, err := h.userRepo.Save(ctx, newUser)
 	if err != nil {
-		return errors.New("failed to create user: " + err.Error())
+		return msgerror.Wrap("failed to create user", err)
 	}
 
 	if savedUser == nil {
