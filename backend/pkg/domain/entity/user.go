@@ -3,7 +3,6 @@ package entity
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"fmt"
 	"time"
 
 	"github.com/eskokado/startup-auth-go/backend/pkg/domain/vo"
@@ -60,29 +59,34 @@ func CreateUser(
 	imageURL string,
 ) (*User, error) {
 	id := vo.NewID()
+	validationErrs := msgerror.NewValidationErrors()
 
 	validName, err := vo.NewName(name, 3, 50)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", msgerror.AnErrInvalidUser, err)
+		validationErrs.Add("name", err.Error())
 	}
 
 	validEmail, err := vo.NewEmail(email)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", msgerror.AnErrInvalidUser, err)
+		validationErrs.Add("email", err.Error())
 	}
 
 	passwordHash, err := vo.NewPasswordHash(password)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", msgerror.AnErrInvalidUser, err)
+		validationErrs.Add("password", err.Error())
 	}
 
 	var url *vo.URL
 	if imageURL != "" {
 		u, err := vo.NewURL(imageURL)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %v", msgerror.AnErrInvalidUser, err)
+			validationErrs.Add("image_url", err.Error())
 		}
 		url = &u
+	}
+
+	if validationErrs.HasErrors() {
+		return nil, validationErrs
 	}
 
 	return NewUser(id, validName, validEmail, passwordHash, url)
