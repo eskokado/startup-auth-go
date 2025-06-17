@@ -29,6 +29,7 @@ func TestUpdatePasswordUseCase_Execute(t *testing.T) {
 
 		mockRepo.On("GetByID", ctx, validUserID).Return(validUser, nil)
 		mockCrypto.On("Compare", "current_password", currentHash.String()).Return(true, nil)
+		mockCrypto.On("Compare", "new_password", currentHash.String()).Return(false, nil)
 		mockCrypto.On("Encrypt", "new_password").Return("new_hash", nil)
 		mockRepo.On("Save", ctx, mock.Anything).Return(validUser, nil)
 
@@ -44,12 +45,12 @@ func TestUpdatePasswordUseCase_Execute(t *testing.T) {
 		mockRepo := new(mocks.MockUserRepo)
 		mockCrypto := new(mocks.MockCrypto)
 
-		mockRepo.On("GetByID", ctx, validUserID).Return(&entity.User{}, msgerror.AnErrUserNotFound)
+		mockRepo.On("GetByID", ctx, validUserID).Return(nil, msgerror.AnErrUserNotFound)
 
 		uc := usecase.NewUpdatePasswordUseCase(mockRepo, mockCrypto)
 		err := uc.Execute(ctx, validUserID, "current_password", "new_password")
 
-		assert.ErrorContains(t, err, "failed to get user")
+		assert.ErrorIs(t, err, msgerror.AnErrUserNotFound)
 		mockRepo.AssertExpectations(t)
 	})
 
@@ -68,12 +69,29 @@ func TestUpdatePasswordUseCase_Execute(t *testing.T) {
 		mockCrypto.AssertExpectations(t)
 	})
 
+	t.Run("SamePassword", func(t *testing.T) {
+		mockRepo := new(mocks.MockUserRepo)
+		mockCrypto := new(mocks.MockCrypto)
+
+		mockRepo.On("GetByID", ctx, validUserID).Return(validUser, nil)
+		mockCrypto.On("Compare", "current_password", currentHash.String()).Return(true, nil)
+		mockCrypto.On("Compare", "current_password", currentHash.String()).Return(true, nil)
+
+		uc := usecase.NewUpdatePasswordUseCase(mockRepo, mockCrypto)
+		err := uc.Execute(ctx, validUserID, "current_password", "current_password")
+
+		assert.ErrorIs(t, err, usecase.ErrSamePassword)
+		mockRepo.AssertExpectations(t)
+		mockCrypto.AssertExpectations(t)
+	})
+
 	t.Run("EncryptError", func(t *testing.T) {
 		mockRepo := new(mocks.MockUserRepo)
 		mockCrypto := new(mocks.MockCrypto)
 
 		mockRepo.On("GetByID", ctx, validUserID).Return(validUser, nil)
 		mockCrypto.On("Compare", "current_password", currentHash.String()).Return(true, nil)
+		mockCrypto.On("Compare", "new_password", currentHash.String()).Return(false, nil)
 		mockCrypto.On("Encrypt", "new_password").Return("", errors.New("encryption failed"))
 
 		uc := usecase.NewUpdatePasswordUseCase(mockRepo, mockCrypto)
@@ -90,6 +108,7 @@ func TestUpdatePasswordUseCase_Execute(t *testing.T) {
 
 		mockRepo.On("GetByID", ctx, validUserID).Return(validUser, nil)
 		mockCrypto.On("Compare", "current_password", currentHash.String()).Return(true, nil)
+		mockCrypto.On("Compare", "new_password", currentHash.String()).Return(false, nil)
 		mockCrypto.On("Encrypt", "new_password").Return("", nil)
 
 		uc := usecase.NewUpdatePasswordUseCase(mockRepo, mockCrypto)
@@ -105,7 +124,6 @@ func TestUpdatePasswordUseCase_Execute(t *testing.T) {
 		mockCrypto := new(mocks.MockCrypto)
 
 		mockRepo.On("GetByID", ctx, validUserID).Return(validUser, nil)
-		// Simular erro na comparação
 		mockCrypto.On("Compare", "current_password", currentHash.String()).Return(false, errors.New("compare error"))
 
 		uc := usecase.NewUpdatePasswordUseCase(mockRepo, mockCrypto)
@@ -122,9 +140,9 @@ func TestUpdatePasswordUseCase_Execute(t *testing.T) {
 
 		mockRepo.On("GetByID", ctx, validUserID).Return(validUser, nil)
 		mockCrypto.On("Compare", "current_password", currentHash.String()).Return(true, nil)
+		mockCrypto.On("Compare", "new_password", currentHash.String()).Return(false, nil)
 		mockCrypto.On("Encrypt", "new_password").Return("new_hash", nil)
-		// Simular erro no save
-		mockRepo.On("Save", ctx, mock.Anything).Return(&entity.User{}, errors.New("save error"))
+		mockRepo.On("Save", ctx, mock.Anything).Return(nil, errors.New("save error"))
 
 		uc := usecase.NewUpdatePasswordUseCase(mockRepo, mockCrypto)
 		err := uc.Execute(ctx, validUserID, "current_password", "new_password")
@@ -134,95 +152,66 @@ func TestUpdatePasswordUseCase_Execute(t *testing.T) {
 		mockCrypto.AssertExpectations(t)
 	})
 
-	t.Run("InvalidNewPasswordHash", func(t *testing.T) {
-		mockRepo := new(mocks.MockUserRepo)
-		mockCrypto := new(mocks.MockCrypto)
-
-		validUser := &entity.User{
-			ID:           validUserID,
-			PasswordHash: currentHash,
-		}
-
-		mockRepo.On("GetByID", ctx, validUserID).Return(validUser, nil)
-		mockCrypto.On("Compare", "current_password", currentHash.String()).Return(true, nil)
-
-		// Retornar string vazia que deve fazer vo.NewPasswordHash falhar
-		mockCrypto.On("Encrypt", "new_password").Return("", nil)
-
-		uc := usecase.NewUpdatePasswordUseCase(mockRepo, mockCrypto)
-		err := uc.Execute(ctx, validUserID, "current_password", "new_password")
-
-		assert.Error(t, err)
-		assert.ErrorContains(t, err, "invalid hash")
-
-		// Verificar que Save não foi chamado pois o erro aconteceu antes
-		mockRepo.AssertNotCalled(t, "Save")
-		mockRepo.AssertExpectations(t)
-		mockCrypto.AssertExpectations(t)
-	})
-
-	t.Run("NoSaveOnError", func(t *testing.T) {
-		mockRepo := new(mocks.MockUserRepo)
-		mockCrypto := new(mocks.MockCrypto)
-
-		// Simular erro na comparação
-		mockRepo.On("GetByID", ctx, validUserID).Return(validUser, nil)
-		mockCrypto.On("Compare", "current_password", currentHash.String()).Return(false, errors.New("compare error"))
-
-		uc := usecase.NewUpdatePasswordUseCase(mockRepo, mockCrypto)
-		err := uc.Execute(ctx, validUserID, "current_password", "new_password")
-
-		assert.ErrorContains(t, err, "compare error")
-		mockRepo.AssertNotCalled(t, "Save")
-		mockCrypto.AssertNotCalled(t, "Encrypt") // Corrigido: era mockRepo.AssertNotCalled
-		mockRepo.AssertExpectations(t)
-		mockCrypto.AssertExpectations(t)
-	})
-
 	t.Run("WithPasswordHashError", func(t *testing.T) {
 		mockRepo := new(mocks.MockUserRepo)
 		mockCrypto := new(mocks.MockCrypto)
 
-		validUser := &entity.User{
-			ID:           validUserID,
-			PasswordHash: currentHash,
-		}
-
 		mockRepo.On("GetByID", ctx, validUserID).Return(validUser, nil)
 		mockCrypto.On("Compare", "current_password", currentHash.String()).Return(true, nil)
-
-		// Retornar uma string vazia que deve causar erro no vo.NewPasswordHash
+		mockCrypto.On("Compare", "new_password", currentHash.String()).Return(false, nil)
 		mockCrypto.On("Encrypt", "new_password").Return("", nil)
 
 		uc := usecase.NewUpdatePasswordUseCase(mockRepo, mockCrypto)
 		err := uc.Execute(ctx, validUserID, "current_password", "new_password")
 
-		assert.Error(t, err)
 		assert.ErrorContains(t, err, "invalid hash")
-
-		// Verificar que Save não foi chamado
 		mockRepo.AssertNotCalled(t, "Save")
 		mockRepo.AssertExpectations(t)
 		mockCrypto.AssertExpectations(t)
 	})
 
-	t.Run("InvalidNewPasswordFromEmptyEncrypt", func(t *testing.T) {
+	t.Run("NewPasswordComparisonError", func(t *testing.T) {
 		mockRepo := new(mocks.MockUserRepo)
 		mockCrypto := new(mocks.MockCrypto)
 
 		mockRepo.On("GetByID", ctx, validUserID).Return(validUser, nil)
 		mockCrypto.On("Compare", "current_password", currentHash.String()).Return(true, nil)
-
-		// Encrypt retorna string vazia - isso deve fazer vo.NewPasswordHash falhar
-		mockCrypto.On("Encrypt", "new_password").Return("", nil)
+		mockCrypto.On("Compare", "new_password", currentHash.String()).Return(false, errors.New("comparison error"))
 
 		uc := usecase.NewUpdatePasswordUseCase(mockRepo, mockCrypto)
 		err := uc.Execute(ctx, validUserID, "current_password", "new_password")
 
-		assert.Error(t, err)
-		assert.ErrorContains(t, err, "invalid hash")
+		assert.ErrorContains(t, err, "failed to verify password difference")
 		mockRepo.AssertNotCalled(t, "Save")
+		mockCrypto.AssertNotCalled(t, "Encrypt")
 		mockRepo.AssertExpectations(t)
 		mockCrypto.AssertExpectations(t)
+	})
+
+	t.Run("NilUser", func(t *testing.T) {
+		mockRepo := new(mocks.MockUserRepo)
+		mockCrypto := new(mocks.MockCrypto)
+
+		mockRepo.On("GetByID", ctx, validUserID).Return(nil, nil)
+
+		uc := usecase.NewUpdatePasswordUseCase(mockRepo, mockCrypto)
+		err := uc.Execute(ctx, validUserID, "current_password", "new_password")
+
+		assert.ErrorIs(t, err, msgerror.AnErrUserNotFound)
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("UserNotFound_AnErrNotFound", func(t *testing.T) {
+		mockRepo := new(mocks.MockUserRepo)
+		mockCrypto := new(mocks.MockCrypto)
+
+		// Return msgerror.AnErrNotFound specifically
+		mockRepo.On("GetByID", ctx, validUserID).Return(nil, msgerror.AnErrNotFound)
+
+		uc := usecase.NewUpdatePasswordUseCase(mockRepo, mockCrypto)
+		err := uc.Execute(ctx, validUserID, "current_password", "new_password")
+
+		assert.ErrorIs(t, err, msgerror.AnErrUserNotFound)
+		mockRepo.AssertExpectations(t)
 	})
 }
