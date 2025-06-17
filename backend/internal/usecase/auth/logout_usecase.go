@@ -2,9 +2,9 @@ package usecase
 
 import (
 	"context"
-	"errors"
 
 	"github.com/eskokado/startup-auth-go/backend/pkg/domain/providers"
+	"github.com/eskokado/startup-auth-go/backend/pkg/msgerror"
 )
 
 type LogoutUsecase struct {
@@ -20,12 +20,16 @@ func NewLogoutUsecase(blacklistProvider providers.BlacklistProvider) *LogoutUsec
 func (uc *LogoutUsecase) Execute(ctx context.Context, token string) error {
 	exists, err := uc.blacklistProvider.Exists(ctx, token)
 	if err != nil {
-		return errors.New("failed to verify token status")
+		return msgerror.Wrap("failed to verify token status", err)
 	}
 
 	if !exists {
-		return errors.New("token not found")
+		return msgerror.AnErrInvalidToken
 	}
 
-	return uc.blacklistProvider.Add(ctx, token, 0)
+	if err := uc.blacklistProvider.Add(ctx, token, 0); err != nil {
+		return msgerror.Wrap("failed to revoke token", err)
+	}
+
+	return nil
 }
