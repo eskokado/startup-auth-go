@@ -1,4 +1,3 @@
-// src/hooks/useAuth.ts
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -9,10 +8,8 @@ export const useAuth = (redirectPath = '/auth/login') => {
     useEffect(() => {
         const checkAuth = () => {
             const token = localStorage.getItem('access-token');
-            const client = localStorage.getItem('client');
-            const uid = localStorage.getItem('uid');
 
-            const authStatus = !!token && !!client && !!uid;
+            const authStatus = !!token;
             setIsAuthenticated(authStatus);
 
             if (!authStatus && redirectPath) {
