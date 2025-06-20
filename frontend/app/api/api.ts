@@ -5,6 +5,13 @@ export const baseURL = process.env.NEXT_PUBLIC_API_URL
 const api = axios.create({ baseURL, withCredentials: true });
 interface ResponseData {
     access_token?: string;
+    user?: UserData
+}
+
+interface UserData {
+    id?: string;
+    name?: string;
+    email?: string;
 }
 
 
@@ -19,9 +26,15 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
     (response) => {
         const newAccessToken = (response.data as ResponseData)?.access_token;
+        const newUserId = (response.data as ResponseData)?.user?.id
+        const newUserName = (response.data as ResponseData)?.user?.name
+        const newUserEmail = (response.data as ResponseData)?.user?.email
 
-        if (newAccessToken) {
+        if (newAccessToken && newUserId && newUserEmail && newUserName) {
             localStorage.setItem('access-token', newAccessToken);
+            localStorage.setItem('user-id', newUserId)
+            localStorage.setItem('user-name', newUserName)
+            localStorage.setItem('user-email', newUserEmail)
         }
 
         return response;

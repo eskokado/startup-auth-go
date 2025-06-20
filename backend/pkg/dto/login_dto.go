@@ -21,5 +21,12 @@ type LoginInput struct {
 }
 
 type LoginOutput struct {
-	AccessToken string `json:"access_token"`
+	AccessToken string     `json:"access_token"`
+	User        UserOutput `json:"user"`
+}
+
+type UserOutput struct {
+	Id    string `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
 }

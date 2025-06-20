@@ -31,6 +31,13 @@ func (h *LoginHandler) Handle(c *gin.Context) {
 		return
 	}
 
-	output := dto.LoginOutput{AccessToken: loginResult.Token}
+	output := dto.LoginOutput{
+		AccessToken: loginResult.Token,
+		User: dto.UserOutput{
+			Id:    loginResult.UserID.String(),
+			Name:  loginResult.Name.String(),
+			Email: loginResult.Email.String(),
+		},
+	}
 	c.JSON(http.StatusOK, output)
 }
