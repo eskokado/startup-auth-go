@@ -5,7 +5,7 @@ Content-Type: application/json
 
 {
     "name": "Edson Kokado",
-    "email": "eskokado07@gmail.com",
+    "email": "eskokado08@gmail.com",
     "password": "12345678",
     "password_confirmation": "12345678",
     "image_url": "http://image.eskokado.com"
