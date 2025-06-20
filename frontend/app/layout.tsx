@@ -6,6 +6,8 @@ import 'primeflex/primeflex.css';
 import 'primeicons/primeicons.css';
 import '../styles/layout/layout.scss';
 import '../styles/demo/Demos.scss';
+import { CurrentUserProvider, useCurrentUser, UserDataType } from '@/layout/context/CurrentUserContext';
+import { useEffect } from 'react';
 
 interface RootLayoutProps {
     children: React.ReactNode;
@@ -19,9 +21,33 @@ export default function RootLayout({ children }: RootLayoutProps) {
             </head>
             <body>
                 <PrimeReactProvider>
-                    <LayoutProvider>{children}</LayoutProvider>
+                    <CurrentUserProvider>
+                        <LayoutProvider>
+                            <InitCurrentUserContext />
+                            {children}
+                        </LayoutProvider>
+                    </CurrentUserProvider>
                 </PrimeReactProvider>
             </body>
         </html>
     );
 }
+
+
+const InitCurrentUserContext = () => {
+    const { setCurrentUser } = useCurrentUser();
+
+    useEffect(() => {
+        let storeCurrentUser: UserDataType = {
+            id: '',
+            name: '',
+            email: ''
+        };
+        storeCurrentUser.id = localStorage.getItem('user-id') || '';
+        storeCurrentUser.name = localStorage.getItem('user-name') || '';
+        storeCurrentUser.email = localStorage.getItem('user-email') || '';
+        setCurrentUser(storeCurrentUser);
+    }, [setCurrentUser]);
+
+    return null;
+};
