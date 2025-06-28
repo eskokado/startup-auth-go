@@ -88,10 +88,10 @@ func (h *LoginUsecase) Execute(ctx context.Context, email string, password strin
 		return dto.LoginResult{}, msgerror.Wrap("failed to generate token", err)
 	}
 
-	ttl := 24 * time.Hour
-	if err := h.blacklistProvider.Add(ctx, token, ttl); err != nil {
-		return dto.LoginResult{}, msgerror.Wrap("failed to secure session", err)
-	}
+	// ttl := 24 * time.Hour
+	// if err := h.blacklistProvider.Add(ctx, token, ttl); err != nil {
+	// 	return dto.LoginResult{}, msgerror.Wrap("failed to secure session", err)
+	// }
 
 	return dto.LoginResult{
 		UserID:    user.ID,

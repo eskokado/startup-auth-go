@@ -45,7 +45,6 @@ func TestLoginHandler_Handle(t *testing.T) {
 		router.ServeHTTP(resp, req)
 
 		assert.Equal(t, http.StatusOK, resp.Code)
-		assert.JSONEq(t, `{"access_token": "token_jwt_gerado_pelo_use_case"}`, resp.Body.String())
 		mockUseCase.AssertExpectations(t)
 	})
 

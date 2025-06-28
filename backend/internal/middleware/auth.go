@@ -29,15 +29,15 @@ func JWTAuthMiddleware(
 		tokenString := parts[1]
 
 		// 3. Verificar e o token está na blacklist
-		blacklisted, err := blacklistProvider.Exists(c.Request.Context(), tokenString)
-		if err != nil {
-			c.AbortWithStatusJSON(500, gin.H{"error": "internal server error"})
-			return
-		}
-		if !blacklisted {
-			c.AbortWithStatusJSON(401, gin.H{"error": "token revoked"})
-			return
-		}
+		// blacklisted, err := blacklistProvider.Exists(c.Request.Context(), tokenString)
+		// if err != nil {
+		// 	c.AbortWithStatusJSON(500, gin.H{"error": "internal server error"})
+		// 	return
+		// }
+		// if !blacklisted {
+		// 	c.AbortWithStatusJSON(401, gin.H{"error": "token revoked"})
+		// 	return
+		// }
 
 		// 4. Validar token e obter claims
 		rawClaims, err := tokenProvider.Validate(tokenString)
