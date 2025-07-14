@@ -238,6 +238,8 @@ func TestLoginSuccessfully(t *testing.T) {
 	mockToken := new(mocks.MockTokenProvider)
 	mockBlacklist := new(mocks.MockBlacklist)
 
+	generatedToken := "generated_token"
+
 	name, _ := vo.NewName("Test User", 0, 0)
 	email, _ := vo.NewEmail("user@test.com")
 	validHash := "$2a$10$0MwrQkGO0Bw6dYpVfiX4mefEVgTdgtCYCJ7LxltXfzj5qscr4sive"
@@ -263,15 +265,15 @@ func TestLoginSuccessfully(t *testing.T) {
 
 	mockRepo.On("GetByEmail", mock.Anything, email).Return(user, nil)
 	mockCrypto.On("Compare", "valid-password", validHash).Return(true, nil)
-	mockToken.On("Generate", expectedClaims).Return("generated_token", nil)
+	mockToken.On("Generate", expectedClaims).Return(generatedToken, nil)
 
 	// Expectativas para salvamento no Redis
 	prefix := "startup-auth-go"
-	mockBlacklist.On("SetWithKey", mock.Anything, prefix+":UserID", userID.String(), 24*time.Hour).Return(nil)
-	mockBlacklist.On("SetWithKey", mock.Anything, prefix+":Name", name.String(), 24*time.Hour).Return(nil)
-	mockBlacklist.On("SetWithKey", mock.Anything, prefix+":Email", email.String(), 24*time.Hour).Return(nil)
-	mockBlacklist.On("SetWithKey", mock.Anything, prefix+":Token", "generated_token", 24*time.Hour).Return(nil)
-	mockBlacklist.On("SetWithKey", mock.Anything, prefix+":CreatedAt", createdAt.Format(time.RFC3339), 24*time.Hour).Return(nil)
+	mockBlacklist.On("SetWithKey", mock.Anything, prefix+":"+generatedToken+":UserID", userID.String(), 24*time.Hour).Return(nil)
+	mockBlacklist.On("SetWithKey", mock.Anything, prefix+":"+generatedToken+":Name", name.String(), 24*time.Hour).Return(nil)
+	mockBlacklist.On("SetWithKey", mock.Anything, prefix+":"+generatedToken+":Email", email.String(), 24*time.Hour).Return(nil)
+	mockBlacklist.On("SetWithKey", mock.Anything, prefix+":"+generatedToken+":Token", generatedToken, 24*time.Hour).Return(nil)
+	mockBlacklist.On("SetWithKey", mock.Anything, prefix+":"+generatedToken+":CreatedAt", createdAt.Format(time.RFC3339), 24*time.Hour).Return(nil)
 
 	handler := usecase.NewLoginUsecase(mockRepo, mockCrypto, mockToken, mockBlacklist)
 	result, err := handler.Execute(context.Background(), "user@test.com", "valid-password")
@@ -340,7 +342,8 @@ func testRedisSaveFailure(t *testing.T, field string, expectedError string) {
 
 	mockRepo.On("GetByEmail", mock.Anything, email).Return(user, nil)
 	mockCrypto.On("Compare", "valid-password", validHash).Return(true, nil)
-	mockToken.On("Generate", expectedClaims).Return("generated_token", nil)
+	generatedToken := "generated_token"
+	mockToken.On("Generate", expectedClaims).Return(generatedToken, nil)
 
 	// Configurar as expectativas para o Redis
 	prefix := "startup-auth-go"
@@ -351,7 +354,7 @@ func testRedisSaveFailure(t *testing.T, field string, expectedError string) {
 	calls := []*mock.Call{}
 
 	for _, f := range fieldsOrder {
-		key := prefix + ":" + f
+		key := prefix + ":" + generatedToken + ":" + f
 		if f == field {
 			call := mockBlacklist.On("SetWithKey", mock.Anything, key, mock.Anything, 24*time.Hour)
 			call.Return(redisErr)
@@ -416,20 +419,21 @@ func TestLoginWithCreatedAtFormat(t *testing.T) {
 
 	mockRepo.On("GetByEmail", mock.Anything, email).Return(user, nil)
 	mockCrypto.On("Compare", "valid-password", validHash).Return(true, nil)
-	mockToken.On("Generate", expectedClaims).Return("generated_token", nil)
+	generatedToken := "generated_token"
+	mockToken.On("Generate", expectedClaims).Return(generatedToken, nil)
 
 	// Expectativas para salvamento no Redis
 	prefix := "startup-auth-go"
-	mockBlacklist.On("SetWithKey", mock.Anything, prefix+":UserID", userID.String(), 24*time.Hour).Return(nil)
-	mockBlacklist.On("SetWithKey", mock.Anything, prefix+":Name", name.String(), 24*time.Hour).Return(nil)
-	mockBlacklist.On("SetWithKey", mock.Anything, prefix+":Email", email.String(), 24*time.Hour).Return(nil)
-	mockBlacklist.On("SetWithKey", mock.Anything, prefix+":Token", "generated_token", 24*time.Hour).Return(nil)
-	mockBlacklist.On("SetWithKey", mock.Anything, prefix+":CreatedAt", expectedFormat, 24*time.Hour).Return(nil)
+	mockBlacklist.On("SetWithKey", mock.Anything, prefix+":"+generatedToken+":UserID", userID.String(), 24*time.Hour).Return(nil)
+	mockBlacklist.On("SetWithKey", mock.Anything, prefix+":"+generatedToken+":Name", name.String(), 24*time.Hour).Return(nil)
+	mockBlacklist.On("SetWithKey", mock.Anything, prefix+":"+generatedToken+":Email", email.String(), 24*time.Hour).Return(nil)
+	mockBlacklist.On("SetWithKey", mock.Anything, prefix+":"+generatedToken+":Token", generatedToken, 24*time.Hour).Return(nil)
+	mockBlacklist.On("SetWithKey", mock.Anything, prefix+":"+generatedToken+":CreatedAt", expectedFormat, 24*time.Hour).Return(nil)
 
 	handler := usecase.NewLoginUsecase(mockRepo, mockCrypto, mockToken, mockBlacklist)
 	result, err := handler.Execute(context.Background(), "user@test.com", "valid-password")
 
 	assert.NoError(t, err)
 	assert.Equal(t, testTime, result.CreatedAt)
-	mockBlacklist.AssertCalled(t, "SetWithKey", mock.Anything, prefix+":CreatedAt", expectedFormat, 24*time.Hour)
+	mockBlacklist.AssertCalled(t, "SetWithKey", mock.Anything, prefix+":"+generatedToken+":CreatedAt", expectedFormat, 24*time.Hour)
 }
