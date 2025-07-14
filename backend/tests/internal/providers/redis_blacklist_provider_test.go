@@ -36,6 +36,11 @@ func (m *MockRedisCmdable) Exists(ctx context.Context, keys ...string) *redis.In
 	return args.Get(0).(*redis.IntCmd)
 }
 
+func (m *MockRedisCmdable) Del(ctx context.Context, keys ...string) *redis.IntCmd {
+	args := m.Called(ctx, keys)
+	return args.Get(0).(*redis.IntCmd)
+}
+
 // ===== Testes existentes para Add e Exists =====
 
 func TestRedisBlacklist_Add_Success(t *testing.T) {
@@ -311,4 +316,49 @@ func TestRedisBlacklist_MGet_Error(t *testing.T) {
 	assert.ErrorIs(t, err, expectedErr)
 	assert.Nil(t, values)
 	mockClient.AssertExpectations(t)
+}
+
+// ===== Testes para Del =====
+
+func TestRedisBlacklist_Del_Success(t *testing.T) {
+	mockClient := new(MockRedisCmdable)
+	provider := providers.NewRedisBlacklist(mockClient)
+
+	ctx := context.Background()
+	keys := []string{"key1", "key2"}
+
+	// Configurar para retornar 2 chaves deletadas
+	cmd := redis.NewIntResult(2, nil)
+	mockClient.On("Del", ctx, keys).Return(cmd)
+
+	err := provider.Del(ctx, keys...)
+	assert.NoError(t, err)
+	mockClient.AssertExpectations(t)
+}
+
+func TestRedisBlacklist_Del_Error(t *testing.T) {
+	mockClient := new(MockRedisCmdable)
+	provider := providers.NewRedisBlacklist(mockClient)
+
+	ctx := context.Background()
+	keys := []string{"key1", "key2"}
+	expectedErr := errors.New("redis error")
+
+	cmd := redis.NewIntResult(0, expectedErr)
+	mockClient.On("Del", ctx, keys).Return(cmd)
+
+	err := provider.Del(ctx, keys...)
+	assert.ErrorIs(t, err, expectedErr)
+	mockClient.AssertExpectations(t)
+}
+
+func TestRedisBlacklist_Del_NoKeys(t *testing.T) {
+	mockClient := new(MockRedisCmdable)
+	provider := providers.NewRedisBlacklist(mockClient)
+
+	ctx := context.Background()
+	err := provider.Del(ctx) // Sem chaves
+
+	assert.NoError(t, err)
+	mockClient.AssertNotCalled(t, "Del")
 }
