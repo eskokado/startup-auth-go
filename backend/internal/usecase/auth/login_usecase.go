@@ -93,31 +93,31 @@ func (h *LoginUsecase) Execute(ctx context.Context, email string, password strin
 	ttl := 24 * time.Hour
 
 	// UserID
-	keyUserID := prefix + ":UserID"
+	keyUserID := prefix + ":" + token + ":UserID"
 	if err := h.blacklistProvider.SetWithKey(ctx, keyUserID, user.ID.String(), ttl); err != nil {
 		return dto.LoginResult{}, msgerror.Wrap("failed to save UserID", err)
 	}
 
 	// Name
-	keyName := prefix + ":Name"
+	keyName := prefix + ":" + token + ":Name"
 	if err := h.blacklistProvider.SetWithKey(ctx, keyName, user.Name.String(), ttl); err != nil {
 		return dto.LoginResult{}, msgerror.Wrap("failed to save Name", err)
 	}
 
 	// Email
-	keyEmail := prefix + ":Email"
+	keyEmail := prefix + ":" + token + ":Email"
 	if err := h.blacklistProvider.SetWithKey(ctx, keyEmail, user.Email.String(), ttl); err != nil {
 		return dto.LoginResult{}, msgerror.Wrap("failed to save Email", err)
 	}
 
 	// Token
-	keyToken := prefix + ":Token"
+	keyToken := prefix + ":" + token + ":Token"
 	if err := h.blacklistProvider.SetWithKey(ctx, keyToken, token, ttl); err != nil {
 		return dto.LoginResult{}, msgerror.Wrap("failed to save Token", err)
 	}
 
 	// CreatedAt (convertido para string)
-	keyCreatedAt := prefix + ":CreatedAt"
+	keyCreatedAt := prefix + ":" + token + ":CreatedAt"
 	createdAtStr := user.CreatedAt.Format(time.RFC3339)
 	if err := h.blacklistProvider.SetWithKey(ctx, keyCreatedAt, createdAtStr, ttl); err != nil {
 		return dto.LoginResult{}, msgerror.Wrap("failed to save CreatedAt", err)
