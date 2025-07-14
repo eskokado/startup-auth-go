@@ -12,4 +12,5 @@ type BlacklistProvider interface {
 	SetWithKey(ctx context.Context, key string, value interface{}, ttl time.Duration) error
 	Get(ctx context.Context, key string) (string, error)
 	MGet(ctx context.Context, keys ...string) ([]interface{}, error)
+	Del(ctx context.Context, keys ...string) error
 }
