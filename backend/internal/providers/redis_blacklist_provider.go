@@ -13,6 +13,7 @@ type RedisCmdable interface {
 	MGet(ctx context.Context, keys ...string) *redis.SliceCmd
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
 	Exists(ctx context.Context, keys ...string) *redis.IntCmd
+	Del(ctx context.Context, keys ...string) *redis.IntCmd
 }
 
 type RedisBlacklist struct {
@@ -71,4 +72,11 @@ func (r *RedisBlacklist) MGet(ctx context.Context, keys ...string) ([]interface{
 		return nil, err
 	}
 	return cmd.Val(), nil
+}
+
+func (r *RedisBlacklist) Del(ctx context.Context, keys ...string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	return r.client.Del(ctx, keys...).Err()
 }
