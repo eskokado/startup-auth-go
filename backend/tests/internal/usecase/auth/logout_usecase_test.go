@@ -1,77 +1,97 @@
 package usecase_test
 
-// import (
-// 	"context"
-// 	"errors"
-// 	"testing"
-// 	"time"
+import (
+	"context"
+	"errors"
+	"testing"
 
-// 	usecase "github.com/eskokado/startup-auth-go/backend/internal/usecase/auth"
-// 	"github.com/eskokado/startup-auth-go/backend/pkg/msgerror"
-// 	"github.com/eskokado/startup-auth-go/backend/tests/mocks"
-// 	"github.com/stretchr/testify/assert"
-// 	"github.com/stretchr/testify/mock"
-// )
+	usecase "github.com/eskokado/startup-auth-go/backend/internal/usecase/auth"
+	"github.com/eskokado/startup-auth-go/backend/tests/mocks"
+	"github.com/stretchr/testify/assert"
+)
 
-// func TestLogoutSuccess(t *testing.T) {
-// 	mockBlacklist := new(mocks.MockBlacklist)
-// 	token := "valid_token"
+func TestLogoutSuccess(t *testing.T) {
+	mockBlacklist := new(mocks.MockBlacklist)
+	logoutUsecase := usecase.NewLogoutUsecase(mockBlacklist)
 
-// 	mockBlacklist.On("Exists", mock.Anything, token).Return(true, nil)
-// 	mockBlacklist.On("Add", mock.Anything, token, time.Duration(0)).Return(nil)
+	ctx := context.Background()
+	token := "valid_token"
 
-// 	uc := usecase.NewLogoutUsecase(mockBlacklist)
-// 	err := uc.Execute(context.Background(), token)
+	// Definir as chaves que serão deletadas
+	expectedKeys := []string{
+		"startup-auth-go:valid_token:UserID",
+		"startup-auth-go:valid_token:Name",
+		"startup-auth-go:valid_token:Email",
+		"startup-auth-go:valid_token:Token",
+		"startup-auth-go:valid_token:CreatedAt",
+	}
 
-// 	assert.NoError(t, err)
-// 	mockBlacklist.AssertExpectations(t)
-// }
+	// Configurar o mock para retornar sucesso
+	mockBlacklist.On("Del", ctx, expectedKeys).Return(nil)
 
-// func TestLogoutTokenNotFound(t *testing.T) {
-// 	mockBlacklist := new(mocks.MockBlacklist)
-// 	token := "invalid_token"
+	err := logoutUsecase.Execute(ctx, token)
 
-// 	mockBlacklist.On("Exists", mock.Anything, token).Return(false, nil)
+	assert.NoError(t, err)
+	mockBlacklist.AssertExpectations(t)
+}
 
-// 	uc := usecase.NewLogoutUsecase(mockBlacklist)
-// 	err := uc.Execute(context.Background(), token)
+func TestLogoutError(t *testing.T) {
+	mockBlacklist := new(mocks.MockBlacklist)
+	logoutUsecase := usecase.NewLogoutUsecase(mockBlacklist)
 
-// 	assert.Error(t, err)
-// 	assert.ErrorIs(t, err, msgerror.AnErrInvalidToken)
-// 	mockBlacklist.AssertExpectations(t)
-// 	mockBlacklist.AssertNotCalled(t, "Add")
-// }
+	ctx := context.Background()
+	token := "valid_token"
+	expectedErr := errors.New("redis error")
 
-// func TestLogoutExistsError(t *testing.T) {
-// 	mockBlacklist := new(mocks.MockBlacklist)
-// 	token := "any_token"
-// 	expectedErr := errors.New("database error")
+	expectedKeys := []string{
+		"startup-auth-go:valid_token:UserID",
+		"startup-auth-go:valid_token:Name",
+		"startup-auth-go:valid_token:Email",
+		"startup-auth-go:valid_token:Token",
+		"startup-auth-go:valid_token:CreatedAt",
+	}
 
-// 	mockBlacklist.On("Exists", mock.Anything, token).Return(false, expectedErr)
+	mockBlacklist.On("Del", ctx, expectedKeys).Return(expectedErr)
 
-// 	uc := usecase.NewLogoutUsecase(mockBlacklist)
-// 	err := uc.Execute(context.Background(), token)
+	err := logoutUsecase.Execute(ctx, token)
 
-// 	assert.Error(t, err)
-// 	assert.Contains(t, err.Error(), "failed to verify token status")
-// 	assert.ErrorIs(t, err, expectedErr)
-// 	mockBlacklist.AssertExpectations(t)
-// 	mockBlacklist.AssertNotCalled(t, "Add")
-// }
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to remove user session data")
+	assert.Contains(t, err.Error(), "redis error")
+	mockBlacklist.AssertExpectations(t)
+}
 
-// func TestLogoutAddError(t *testing.T) {
-// 	mockBlacklist := new(mocks.MockBlacklist)
-// 	token := "valid_token"
-// 	expectedErr := errors.New("redis error")
+func TestLogoutEmptyToken(t *testing.T) {
+	mockBlacklist := new(mocks.MockBlacklist)
+	logoutUsecase := usecase.NewLogoutUsecase(mockBlacklist)
 
-// 	mockBlacklist.On("Exists", mock.Anything, token).Return(true, nil)
-// 	mockBlacklist.On("Add", mock.Anything, token, time.Duration(0)).Return(expectedErr)
+	ctx := context.Background()
+	err := logoutUsecase.Execute(ctx, "")
 
-// 	uc := usecase.NewLogoutUsecase(mockBlacklist)
-// 	err := uc.Execute(context.Background(), token)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "token is required")
+	mockBlacklist.AssertNotCalled(t, "Del")
+}
 
-// 	assert.Error(t, err)
-// 	assert.Contains(t, err.Error(), "failed to revoke token")
-// 	assert.ErrorIs(t, err, expectedErr)
-// 	mockBlacklist.AssertExpectations(t)
-// }
+func TestLogoutKeysDefinition(t *testing.T) {
+	mockBlacklist := new(mocks.MockBlacklist)
+	logoutUsecase := usecase.NewLogoutUsecase(mockBlacklist)
+
+	ctx := context.Background()
+	token := "token123"
+
+	expectedKeys := []string{
+		"startup-auth-go:token123:UserID",
+		"startup-auth-go:token123:Name",
+		"startup-auth-go:token123:Email",
+		"startup-auth-go:token123:Token",
+		"startup-auth-go:token123:CreatedAt",
+	}
+
+	mockBlacklist.On("Del", ctx, expectedKeys).Return(nil)
+
+	_ = logoutUsecase.Execute(ctx, token)
+
+	// Verifica se as chaves passadas são exatamente as esperadas
+	mockBlacklist.AssertCalled(t, "Del", ctx, expectedKeys)
+}
