@@ -26,7 +26,12 @@ func (m *MockBlacklist) ExistsKey(ctx context.Context, key string) (bool, error)
 	return args.Bool(0), args.Error(1)
 }
 
-func (m *MockBlacklist) SetWithKey(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
+func (m *MockBlacklist) SetWithKey(
+	ctx context.Context,
+	key string,
+	value interface{},
+	ttl time.Duration,
+) error {
 	args := m.Called(ctx, key, value, ttl)
 	return args.Error(0)
 }
@@ -39,4 +44,9 @@ func (m *MockBlacklist) Get(ctx context.Context, key string) (string, error) {
 func (m *MockBlacklist) MGet(ctx context.Context, keys ...string) ([]interface{}, error) {
 	args := m.Called(ctx, keys)
 	return args.Get(0).([]interface{}), args.Error(1)
+}
+
+func (m *MockBlacklist) Del(ctx context.Context, keys ...string) error {
+	args := m.Called(ctx, keys)
+	return args.Error(0)
 }
