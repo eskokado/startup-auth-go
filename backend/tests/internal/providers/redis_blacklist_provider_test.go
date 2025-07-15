@@ -52,7 +52,7 @@ func TestRedisBlacklist_Add_Success(t *testing.T) {
 	ttl := 5 * time.Minute
 
 	cmd := redis.NewStatusResult("", nil)
-	mockClient.On("Set", ctx, "blacklist:"+token, token, ttl).Return(cmd)
+	mockClient.On("Set", ctx, "startup-auth-go:"+token, token, ttl).Return(cmd)
 
 	err := provider.Add(ctx, token, ttl)
 	assert.NoError(t, err)
@@ -69,7 +69,7 @@ func TestRedisBlacklist_Add_Error(t *testing.T) {
 	expectedErr := errors.New("redis error")
 
 	cmd := redis.NewStatusResult("", expectedErr)
-	mockClient.On("Set", ctx, "blacklist:"+token, "", ttl).Return(cmd)
+	mockClient.On("Set", ctx, "startup-auth-go:"+token, "", ttl).Return(cmd)
 
 	err := provider.Add(ctx, token, 0)
 	assert.ErrorIs(t, err, expectedErr)
@@ -84,7 +84,7 @@ func TestRedisBlacklist_Exists_True(t *testing.T) {
 	token := "test_token"
 
 	cmd := redis.NewIntResult(1, nil)
-	mockClient.On("Exists", ctx, []string{"blacklist:" + token}).Return(cmd)
+	mockClient.On("Exists", ctx, []string{"startup-auth-go:" + token}).Return(cmd)
 
 	exists, err := provider.Exists(ctx, token)
 	assert.NoError(t, err)
@@ -100,7 +100,7 @@ func TestRedisBlacklist_Exists_False(t *testing.T) {
 	token := "test_token"
 
 	cmd := redis.NewIntResult(0, nil)
-	mockClient.On("Exists", ctx, []string{"blacklist:" + token}).Return(cmd)
+	mockClient.On("Exists", ctx, []string{"startup-auth-go:" + token}).Return(cmd)
 
 	exists, err := provider.Exists(ctx, token)
 	assert.NoError(t, err)
@@ -117,7 +117,7 @@ func TestRedisBlacklist_Exists_Error(t *testing.T) {
 	expectedErr := errors.New("redis error")
 
 	cmd := redis.NewIntResult(0, expectedErr)
-	mockClient.On("Exists", ctx, []string{"blacklist:" + token}).Return(cmd)
+	mockClient.On("Exists", ctx, []string{"startup-auth-go:" + token}).Return(cmd)
 
 	exists, err := provider.Exists(ctx, token)
 	assert.ErrorIs(t, err, expectedErr)
