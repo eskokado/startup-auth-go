@@ -88,10 +88,40 @@ func (h *LoginUsecase) Execute(ctx context.Context, email string, password strin
 		return dto.LoginResult{}, msgerror.Wrap("failed to generate token", err)
 	}
 
-	// ttl := 24 * time.Hour
-	// if err := h.blacklistProvider.Add(ctx, token, ttl); err != nil {
-	// 	return dto.LoginResult{}, msgerror.Wrap("failed to secure session", err)
-	// }
+	// Salvar dados no Redis com prefixo
+	prefix := "startup-auth-go"
+	ttl := 24 * time.Hour
+
+	// UserID
+	keyUserID := prefix + ":" + token + ":UserID"
+	if err := h.blacklistProvider.SetWithKey(ctx, keyUserID, user.ID.String(), ttl); err != nil {
+		return dto.LoginResult{}, msgerror.Wrap("failed to save UserID", err)
+	}
+
+	// Name
+	keyName := prefix + ":" + token + ":Name"
+	if err := h.blacklistProvider.SetWithKey(ctx, keyName, user.Name.String(), ttl); err != nil {
+		return dto.LoginResult{}, msgerror.Wrap("failed to save Name", err)
+	}
+
+	// Email
+	keyEmail := prefix + ":" + token + ":Email"
+	if err := h.blacklistProvider.SetWithKey(ctx, keyEmail, user.Email.String(), ttl); err != nil {
+		return dto.LoginResult{}, msgerror.Wrap("failed to save Email", err)
+	}
+
+	// Token
+	keyToken := prefix + ":" + token + ":Token"
+	if err := h.blacklistProvider.SetWithKey(ctx, keyToken, token, ttl); err != nil {
+		return dto.LoginResult{}, msgerror.Wrap("failed to save Token", err)
+	}
+
+	// CreatedAt (convertido para string)
+	keyCreatedAt := prefix + ":" + token + ":CreatedAt"
+	createdAtStr := user.CreatedAt.Format(time.RFC3339)
+	if err := h.blacklistProvider.SetWithKey(ctx, keyCreatedAt, createdAtStr, ttl); err != nil {
+		return dto.LoginResult{}, msgerror.Wrap("failed to save CreatedAt", err)
+	}
 
 	return dto.LoginResult{
 		UserID:    user.ID,

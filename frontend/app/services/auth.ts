@@ -60,7 +60,15 @@ export const authApi = {
     },
 
     logout: async () => {
-        await api.delete('/auth/logout');
+        await api.delete('/auth/logout', {
+            headers: getAuthHeaders()
+        });
         localStorage.clear();
     }
 };
+
+function getAuthHeaders() {
+    return {
+        'Authorization': `Bearer ${localStorage.getItem('access-token')}`,
+    };
+}

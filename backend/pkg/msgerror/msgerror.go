@@ -38,6 +38,7 @@ var (
 	AnErrInvalidToken       = errors.New("invalid token")
 	AnErrExpiredToken       = errors.New("expired token")
 	AnErrSendMessageByEmail = errors.New("error send message by email")
+	AnErrTokenIsRequired    = errors.New("token is required")
 )
 
 func Wrap(msg string, err error) error {

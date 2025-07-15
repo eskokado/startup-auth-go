@@ -3,6 +3,7 @@ package entity
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"io"
 	"time"
 
 	"github.com/eskokado/startup-auth-go/backend/pkg/domain/vo"
@@ -149,7 +150,7 @@ func (u *User) ClearResetToken() {
 
 func generateSecureToken() (string, error) {
 	bytes := make([]byte, 32)
-	if _, err := rand.Read(bytes); err != nil {
+	if _, err := io.ReadFull(rand.Reader, bytes); err != nil {
 		return "", err
 	}
 	return base64.URLEncoding.EncodeToString(bytes), nil
