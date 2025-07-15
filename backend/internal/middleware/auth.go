@@ -29,7 +29,8 @@ func JWTAuthMiddleware(
 		tokenString := parts[1]
 
 		// 3. Verificar e o token está na blacklist
-		blacklisted, err := blacklistProvider.Exists(c.Request.Context(), tokenString)
+		keyToken := "startup-auth-go:" + tokenString + ":Token"
+		blacklisted, err := blacklistProvider.ExistsKey(c.Request.Context(), keyToken)
 		if err != nil {
 			c.AbortWithStatusJSON(500, gin.H{"error": "internal server error"})
 			return
