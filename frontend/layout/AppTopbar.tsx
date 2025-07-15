@@ -2,21 +2,53 @@
 
 import Link from 'next/link';
 import { classNames } from 'primereact/utils';
-import React, { forwardRef, useContext, useImperativeHandle, useRef } from 'react';
+import React, { forwardRef, useContext, useImperativeHandle, useRef, useState } from 'react';
 import { AppTopbarRef } from '@/types';
 import { LayoutContext } from './context/layoutcontext';
+import { Toast } from 'primereact/toast';
+import { authApi } from '@/app/services/auth';
+import { Router } from 'next/router';
+import { useRouter } from 'next/navigation';
 
 const AppTopbar = forwardRef<AppTopbarRef>((props, ref) => {
     const { layoutConfig, layoutState, onMenuToggle, showProfileSidebar } = useContext(LayoutContext);
     const menubuttonRef = useRef(null);
     const topbarmenuRef = useRef(null);
     const topbarmenubuttonRef = useRef(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const toast = useRef<Toast>(null);
+    const router = useRouter();
 
     useImperativeHandle(ref, () => ({
         menubutton: menubuttonRef.current,
         topbarmenu: topbarmenuRef.current,
         topbarmenubutton: topbarmenubuttonRef.current
     }));
+
+    const showToast = (severity: 'success' | 'error', summary: string, detail: string) => {
+        toast.current?.show({ severity, summary, detail, life: 3000 });
+    };
+
+    const handleLogout = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+
+        try {
+            await authApi.logout();
+            router.push("/auth/login")
+        } catch (error: any) {
+            if (toast.current) {
+                error.messages?.forEach((msg: string) => {
+                    showToast('error', `Erro ${error.code}`, msg);
+                });
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
 
     return (
         <div className="layout-topbar">
@@ -48,6 +80,12 @@ const AppTopbar = forwardRef<AppTopbarRef>((props, ref) => {
                         <span>Settings</span>
                     </button>
                 </Link>
+                <button type="button" className="p-link layout-topbar-button"
+                    onClick={handleLogout}
+                >
+                    <i className="pi pi-sign-out"></i>
+                    <span>Settings</span>
+                </button>
             </div>
         </div>
     );
