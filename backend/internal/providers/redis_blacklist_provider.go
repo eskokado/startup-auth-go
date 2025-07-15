@@ -33,11 +33,11 @@ func (r *RedisBlacklist) Add(
 	if ttl > 0 {
 		value = token
 	}
-	return r.client.Set(ctx, "blacklist:"+token, value, ttl).Err()
+	return r.client.Set(ctx, "startup-auth-go:"+token, value, ttl).Err()
 }
 
 func (r *RedisBlacklist) Exists(ctx context.Context, token string) (bool, error) {
-	exists, err := r.client.Exists(ctx, "blacklist:"+token).Result()
+	exists, err := r.client.Exists(ctx, "startup-auth-go:"+token).Result()
 	return exists > 0, err
 }
 
